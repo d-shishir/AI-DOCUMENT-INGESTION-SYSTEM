@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Copy, Check, FileText, Loader2, Info, BrainCircuit, Code, RefreshCw } from "lucide-react";
+import { X, Copy, Check, FileText, Loader2, Info, BrainCircuit, Code, RefreshCw, Database } from "lucide-react";
 
 interface DocumentDetail {
   id: string;
@@ -26,6 +26,8 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [indexing, setIndexing] = useState(false);
+  const [indexSuccess, setIndexSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("text");
@@ -38,6 +40,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       setError(null);
       setDoc(null);
       setActiveTab("text"); // default to text view
+      setIndexSuccess(false);
       try {
         const res = await fetch(`${backendUrl}/documents/${documentId}`);
         if (!res.ok) {
@@ -73,6 +76,26 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       setError(err.message || "Extraction execution failed.");
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const triggerIndexing = async () => {
+    if (!documentId) return;
+    setIndexing(true);
+    setIndexSuccess(false);
+    setError(null);
+    try {
+      const res = await fetch(`${backendUrl}/documents/${documentId}/index`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to index and vectorize document.");
+      }
+      setIndexSuccess(true);
+    } catch (err: any) {
+      setError(err.message || "Indexing operation failed.");
+    } finally {
+      setIndexing(false);
     }
   };
 
@@ -142,29 +165,60 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
               </button>
             </div>
 
-            {/* Quick Extraction Trigger Action */}
-            <button
-              onClick={triggerExtraction}
-              disabled={extracting}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-neonIndigo/10 hover:bg-neonIndigo hover:text-white border border-neonIndigo/20 text-neonIndigo disabled:opacity-50 transition-all"
-            >
-              {extracting ? (
-                <>
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Extracting...
-                </>
-              ) : doc.extracted_json ? (
-                <>
-                  <RefreshCw className="w-3 h-3" />
-                  Re-extract
-                </>
-              ) : (
-                <>
-                  <BrainCircuit className="w-3 h-3" />
-                  Run AI Extraction
-                </>
-              )}
-            </button>
+            {/* Quick Action Triggers */}
+            <div className="flex gap-2 items-center py-2">
+              {/* Vector Indexing Action */}
+              <button
+                onClick={triggerIndexing}
+                disabled={indexing}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                  indexSuccess
+                    ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-300"
+                    : "bg-neonTeal/10 hover:bg-neonTeal hover:text-darkBg border-neonTeal/20 text-neonTeal"
+                }`}
+              >
+                {indexing ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Vectorizing...
+                  </>
+                ) : indexSuccess ? (
+                  <>
+                    <Check className="w-3 h-3" />
+                    Vectorized
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-3 h-3" />
+                    Vectorize
+                  </>
+                )}
+              </button>
+
+              {/* Extraction Trigger Action */}
+              <button
+                onClick={triggerExtraction}
+                disabled={extracting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-neonIndigo/10 hover:bg-neonIndigo hover:text-white border border-neonIndigo/20 text-neonIndigo disabled:opacity-50 transition-all"
+              >
+                {extracting ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Extracting...
+                  </>
+                ) : doc.extracted_json ? (
+                  <>
+                    <RefreshCw className="w-3 h-3" />
+                    Re-extract
+                  </>
+                ) : (
+                  <>
+                    <BrainCircuit className="w-3 h-3" />
+                    Run AI Extraction
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -189,7 +243,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
           ) : doc ? (
             <div className="space-y-6">
               
-              {/* Active Loading Cover for background executions */}
+              {/* Active Loading Cover for background extractions */}
               {extracting && (
                 <div className="p-8 border border-neonIndigo/20 bg-darkPanel/50 rounded-xl flex flex-col items-center justify-center gap-3 animate-pulse">
                   <BrainCircuit className="w-8 h-8 text-neonIndigo animate-spin" />
@@ -200,8 +254,19 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </div>
               )}
 
+              {/* Active Loading Cover for vector index operations */}
+              {indexing && (
+                <div className="p-8 border border-neonTeal/20 bg-darkPanel/50 rounded-xl flex flex-col items-center justify-center gap-3 animate-pulse">
+                  <Database className="w-8 h-8 text-neonTeal animate-spin" />
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-200">Vectorizing document content...</p>
+                    <p className="text-xs text-darkMuted mt-0.5">Segmenting text paragraphs & computing embedding vectors</p>
+                  </div>
+                </div>
+              )}
+
               {/* View Rendering based on Active Tab */}
-              {!extracting && activeTab === "text" && (
+              {!extracting && !indexing && activeTab === "text" && (
                 <div className="space-y-6">
                   {/* Info Stats Bar */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-darkBg/50 border border-darkBorder rounded-xl text-xs">
@@ -251,7 +316,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 </div>
               )}
 
-              {!extracting && activeTab === "json" && (
+              {!extracting && !indexing && activeTab === "json" && (
                 <div className="space-y-6">
                   {doc.extracted_json ? (
                     <div className="space-y-4">

@@ -20,3 +20,11 @@ class DocumentResponse(DocumentBase):
 
 class DocumentDetailResponse(DocumentResponse):
     content: str
+
+class SearchResultResponse(BaseModel):
+    content: str
+    chunk_index: int
+    document_id: UUID
+    filename: str
+    similarity: float
+

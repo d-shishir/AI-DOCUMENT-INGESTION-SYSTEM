@@ -6,9 +6,12 @@ import logging
 from .config import settings
 from .database import get_db
 from .models import Document
-from .schemas import DocumentResponse, DocumentDetailResponse
+from .schemas import DocumentResponse, DocumentDetailResponse, SearchResultResponse
 from .pdf_processor import extract_text_from_pdf
 from .services.extractor import extract_structured_data
+from .services.chunker import split_text_into_chunks
+from .services.embeddings import get_embedding
+from .services.vector_store import save_document_chunks, search_similar_chunks
 
 # Configure logging
 logging.basicConfig(
@@ -164,4 +167,77 @@ def extract_document_data(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Extraction failed: {str(e)}"
+        )
+
+@app.post("/documents/{document_id}/index")
+def index_document(document_id: str, db: Session = Depends(get_db)):
+    """
+    Splits the document text into semantic chunks, generates vector embeddings for each chunk,
+    and indexes them in the pgvector database.
+    """
+    try:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found."
+            )
+            
+        logger.info(f"Chunking and embedding document: {document.filename} ({document.id})")
+        
+        # 1. Chunk the document text
+        chunks = split_text_into_chunks(document.content)
+        if not chunks:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No text chunks could be created. Is the document empty?"
+            )
+            
+        # 2. Generate embeddings for each chunk
+        logger.info(f"Generating embeddings for {len(chunks)} chunks...")
+        embeddings = []
+        for chunk in chunks:
+            vector = get_embedding(chunk["chunk_text"])
+            embeddings.append(vector)
+            
+        # 3. Store chunks + embeddings in pgvector
+        save_document_chunks(db, str(document.id), chunks, embeddings)
+        
+        return {"status": "success", "chunks_indexed": len(chunks)}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Document indexing failed for: {document_id}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Indexing failed: {str(e)}"
+        )
+
+@app.get("/search", response_model=list[SearchResultResponse])
+def search_documents(query: str, limit: int = 5, db: Session = Depends(get_db)):
+    """
+    Semantic search over indexed document chunks using cosine similarity.
+    """
+    if not query or not query.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query parameter is required."
+        )
+        
+    try:
+        logger.info(f"Executing semantic search for query: {query}")
+        
+        # 1. Generate query embedding vector
+        query_vector = get_embedding(query)
+        
+        # 2. Retrieve top matching chunks using pgvector distance operations
+        results = search_similar_chunks(db, query_vector, limit=limit)
+        return results
+        
+    except Exception as e:
+        logger.exception("Semantic search query failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Search failed: {str(e)}"
         )
