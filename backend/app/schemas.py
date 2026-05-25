@@ -28,3 +28,17 @@ class SearchResultResponse(BaseModel):
     filename: str
     similarity: float
 
+class ChatRequest(BaseModel):
+    query: str
+
+class SourceCitation(BaseModel):
+    document_id: UUID
+    chunk_text: str
+    score: float
+    filename: str
+
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[SourceCitation]
+
+

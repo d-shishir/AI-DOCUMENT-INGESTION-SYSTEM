@@ -6,8 +6,8 @@ This document maps out the 30-day milestone tracker for the IngestEngine RAG Kno
 
 ## 📈 Executive Summary
 
-- **Current Stage**: Phase 1 In Progress (RAG Vector Database & Search)
-- **Overall Progress**: 25% (5/20 features deployed)
+- **Current Stage**: Phase 1 Complete (Ingestion, AI Extraction, pgvector RAG Chat)
+- **Overall Progress**: 30% (6/20 features deployed)
 - **Blocked Items**: None
 
 ---
@@ -18,14 +18,14 @@ This document maps out the 30-day milestone tracker for the IngestEngine RAG Kno
 - [x] **Day 1**: Monorepo scaffolding, database schemas, PDF text extraction API, React UI.
 - [x] **Day 2**: AI reasoning + structured extraction layer.
 - [x] **Day 3**: RAG-ready vector database (pgvector) & semantic search.
-- [ ] **Day 4**: PDF table detection and layout structure extraction optimizations.
-- [ ] **Day 5**: Multi-format support extension (DOCX, TXT, MD, HTML).
+- [x] **Day 4**: Grounded RAG QA chat assistant with sources & citations.
+- [ ] **Day 5**: PDF table detection and layout structure extraction optimizations.
 
 ### Phase 2: Embedding & Vector Storage (Days 6–15)
-- [ ] **Day 6**: User auth gateway, tenant separation schemas.
-- [ ] **Day 7**: API Rate limiting, file storage offloading to S3.
-- [ ] **Day 8**: Background worker queue setup for async vector synchronization.
-- [ ] **Day 9**: Conversation context history tables.
+- [ ] **Day 6**: Multi-format support extension (DOCX, TXT, MD, HTML).
+- [ ] **Day 7**: User auth gateway, tenant separation schemas.
+- [ ] **Day 8**: API Rate limiting, file storage offloading to S3.
+- [ ] **Day 9**: Background worker queue setup for async vector synchronization.
 - [ ] **Day 10**: Background worker queue setup for async vector synchronization.
 
 ### Phase 3: RAG Core & Prompt Engineering (Days 16–25)

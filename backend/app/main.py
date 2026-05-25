@@ -6,12 +6,13 @@ import logging
 from .config import settings
 from .database import get_db
 from .models import Document
-from .schemas import DocumentResponse, DocumentDetailResponse, SearchResultResponse
+from .schemas import DocumentResponse, DocumentDetailResponse, SearchResultResponse, ChatRequest, ChatResponse
 from .pdf_processor import extract_text_from_pdf
 from .services.extractor import extract_structured_data
 from .services.chunker import split_text_into_chunks
 from .services.embeddings import get_embedding
 from .services.vector_store import save_document_chunks, search_similar_chunks
+from .services.rag_pipeline import ask_question_rag
 
 # Configure logging
 logging.basicConfig(
@@ -240,4 +241,27 @@ def search_documents(query: str, limit: int = 5, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Search failed: {str(e)}"
+        )
+
+@app.post("/chat-with-documents", response_model=ChatResponse)
+def chat_with_documents(request: ChatRequest, db: Session = Depends(get_db)):
+    """
+    RAG QA Chat endpoint: retrieves context from pgvector, prompts LLM,
+    and returns a grounded answer alongside expandable citations.
+    """
+    if not request.query or not request.query.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query query text is required."
+        )
+        
+    try:
+        logger.info(f"RAG chat request received: {request.query}")
+        response = ask_question_rag(db, request.query)
+        return response
+    except Exception as e:
+        logger.exception("RAG chat query execution failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Chat pipeline failed: {str(e)}"
         )
