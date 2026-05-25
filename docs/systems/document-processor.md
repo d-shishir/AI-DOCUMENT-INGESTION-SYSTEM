@@ -42,7 +42,7 @@ To prevent Denial of Service (DoS) attacks and malicious inputs, the document pr
 ---
 
 ## 🧩 Code Extraction Signature
-Located in [pdf_processor.py](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/backend/app/pdf_processor.py):
+Located in [pdf_processor.py](../../backend/app/pdf_processor.py):
 ```python
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     # Extracts text on page-by-page iteration

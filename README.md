@@ -71,6 +71,6 @@ npm run dev
 
 ## 📖 System Documentation
 Detailed engineering design documents can be found inside the `/docs` folder:
-- **System Overview**: [docs/README.md](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/README.md)
-- **Detailed Design & Dataflow**: [docs/architecture.md](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/architecture.md)
-- **Pipeline Progress Tracker**: [docs/progress.md](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/progress.md)
+- **System Overview**: [docs/README.md](./docs/README.md)
+- **Detailed Design & Dataflow**: [docs/architecture.md](./docs/architecture.md)
+- **Pipeline Progress Tracker**: [docs/progress.md](./docs/progress.md)

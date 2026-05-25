@@ -27,11 +27,11 @@ Welcome to the engineering portal for IngestEngine. This documentation outlines 
 
 ## 📂 Documentation Navigational Index
 
-- **System Architecture**: [docs/architecture.md](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/architecture.md)
+- **System Architecture**: [docs/architecture.md](./architecture.md)
   - Detail on data flows, layer descriptions, and future vector database migrations.
 - **System Specifications**:
-  - [Document Processor Module](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/systems/document-processor.md)
-  - [Future RAG System Spec](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/systems/future-rag-system.md)
+  - [Document Processor Module](./systems/document-processor.md)
+  - [Future RAG System Spec](./systems/future-rag-system.md)
 - **Progress Tracking**:
-  - [30-Day Progress Log](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/progress.md)
-  - [Day 01 Progress Log](file:///Users/shishirlamichhane/Documents/Projects/AI%20DOCUMENT%20INGESTION%20SYSTEM/docs/days/day-01.md)
+  - [30-Day Progress Log](./progress.md)
+  - [Day 01 Progress Log](./days/day-01.md)
