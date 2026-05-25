@@ -36,6 +36,52 @@ app.add_middleware(
 def read_root():
     return {"status": "healthy", "service": settings.PROJECT_NAME}
 
+@app.get("/health/ai")
+def check_ai_connection():
+    """
+    Checks if the AI model API (OpenAI or OpenRouter) is configured and reachable.
+    """
+    if not settings.OPENAI_API_KEY:
+        return {
+            "status": "mock",
+            "model": settings.OPENAI_MODEL,
+            "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+            "provider": "Mock Engine (Offline)",
+            "detail": "No API key configured. Running with local mock fallbacks."
+        }
+        
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            base_url=settings.OPENAI_API_BASE
+        )
+        
+        # Trigger a minimal 1-token request to verify base connection and authentication
+        client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[{"role": "user", "content": "ping"}],
+            max_tokens=1
+        )
+        
+        provider = "OpenRouter" if "openrouter" in settings.OPENAI_API_BASE.lower() else "OpenAI"
+        return {
+            "status": "connected",
+            "model": settings.OPENAI_MODEL,
+            "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+            "provider": provider,
+            "detail": "Successfully reached model API."
+        }
+    except Exception as e:
+        logger.warning(f"AI Connection check failed: {str(e)}")
+        return {
+            "status": "disconnected",
+            "model": settings.OPENAI_MODEL,
+            "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+            "provider": "API Connection Failure",
+            "detail": str(e)
+        }
+
 @app.post("/upload-document", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),

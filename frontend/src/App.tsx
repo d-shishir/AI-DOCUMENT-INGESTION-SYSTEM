@@ -28,6 +28,14 @@ interface Message {
   sources?: ChatSource[];
 }
 
+interface AIStatus {
+  status: "connected" | "mock" | "disconnected";
+  model: string;
+  embedding_model: string;
+  provider: string;
+  detail: string;
+}
+
 type WorkspaceTab = "catalog" | "search" | "chat";
 
 function App() {
@@ -57,6 +65,9 @@ function App() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [expandedSourceIdx, setExpandedSourceIdx] = useState<number | null>(null);
 
+  // AI Connection Status
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
+
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     try {
@@ -73,9 +84,37 @@ function App() {
     }
   }, []);
 
+  const fetchAIStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/health/ai`);
+      if (response.ok) {
+        const data = await response.json();
+        setAiStatus(data);
+      } else {
+        setAiStatus({
+          status: "disconnected",
+          model: "Unknown",
+          embedding_model: "Unknown",
+          provider: "API Connection Failure",
+          detail: "Server returned non-200 status code."
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching AI status:", error);
+      setAiStatus({
+        status: "disconnected",
+        model: "Unknown",
+        embedding_model: "Unknown",
+        provider: "API Connection Failure",
+        detail: "Could not reach the health endpoint."
+      });
+    }
+  }, []);
+
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+    fetchAIStatus();
+  }, [fetchDocuments, fetchAIStatus]);
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -170,6 +209,24 @@ function App() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
               API Connected
             </div>
+            {aiStatus && (
+              <div className={`flex items-center gap-1.5 font-medium px-2 py-0.5 rounded border ${
+                aiStatus.status === "connected"
+                  ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5"
+                  : aiStatus.status === "mock"
+                  ? "text-amber-400 border-amber-500/20 bg-amber-500/5"
+                  : "text-rose-400 border-rose-500/20 bg-rose-500/5"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  aiStatus.status === "connected"
+                    ? "bg-emerald-400 animate-pulse"
+                    : aiStatus.status === "mock"
+                    ? "bg-amber-400"
+                    : "bg-rose-400"
+                }`} />
+                AI: {aiStatus.provider}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -225,6 +282,35 @@ function App() {
                 <div>
                   <p className="text-xs text-gray-300 font-medium">Vector Store Setup</p>
                   <p className="text-[10px] text-darkMuted">pgvector active (HNSW indexed)</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center ${
+                  !aiStatus
+                    ? "text-gray-400"
+                    : aiStatus.status === "connected"
+                    ? "text-emerald-400"
+                    : aiStatus.status === "mock"
+                    ? "text-amber-400"
+                    : "text-rose-400"
+                }`}>
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-300 font-medium">AI Model Engine</p>
+                  <div className="text-[10px] text-darkMuted leading-tight">
+                    {aiStatus ? (
+                      <>
+                        <span className="font-semibold">{aiStatus.provider}</span>
+                        <span className="block text-[9px] text-gray-400 mt-0.5">Chat: {aiStatus.model}</span>
+                        <span className="block text-[9px] text-gray-400">Embeddings: {aiStatus.embedding_model}</span>
+                        <span className="block text-[9px] text-darkMuted mt-0.5">{aiStatus.detail}</span>
+                      </>
+                    ) : (
+                      "Checking status..."
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

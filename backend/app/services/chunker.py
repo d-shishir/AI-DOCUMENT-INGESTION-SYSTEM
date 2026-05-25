@@ -44,6 +44,9 @@ def split_text_into_chunks(text: str, chunk_size: int = 600, overlap: int = 150)
             })
             chunk_index += 1
             
+        if end >= text_length:
+            break
+            
         # Move the slide window forward, accounting for overlap
         start = max(start + 1, end - overlap)
         

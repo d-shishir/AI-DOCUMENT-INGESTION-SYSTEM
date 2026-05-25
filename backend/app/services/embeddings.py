@@ -10,12 +10,18 @@ logger = logging.getLogger(__name__)
 def generate_openai_embedding(text: str) -> list[float]:
     """
     Calls the live OpenAI Embeddings API to generate a vector for the text.
-    Uses text-embedding-3-small (1536 dimensions).
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    model = settings.OPENAI_EMBEDDING_MODEL
+    if "openrouter" in settings.OPENAI_API_BASE.lower() and "/" not in model:
+        model = f"openai/{model}"
+
+    client = OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_API_BASE
+    )
     response = client.embeddings.create(
         input=[text.replace("\n", " ")],
-        model="text-embedding-3-small"
+        model=model
     )
     return response.data[0].embedding
 
