@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI Document Ingestion API"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/doc_ingest"
     OPENAI_API_KEY: str | None = None
+    OPENAI_API_BASE: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4o-mini"
     
     # CORS settings

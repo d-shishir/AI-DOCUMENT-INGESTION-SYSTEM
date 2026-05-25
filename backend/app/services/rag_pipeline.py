@@ -13,7 +13,10 @@ def execute_live_rag(system_prompt: str, user_content: str) -> str:
     """
     Sends the compiled context prompt payload to OpenAI.
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_API_BASE
+    )
     response = client.chat.completions.create(
         model=settings.OPENAI_MODEL,
         messages=[

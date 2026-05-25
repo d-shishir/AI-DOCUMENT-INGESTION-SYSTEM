@@ -75,7 +75,10 @@ def extract_structured_data_live(text: str) -> dict:
     """
     Calls the OpenAI API with strict instructions and JSON mode validation.
     """
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = OpenAI(
+        api_key=settings.OPENAI_API_KEY,
+        base_url=settings.OPENAI_API_BASE
+    )
     
     # Heuristic classification for prompt tailoring
     is_invoice = any(term in text.lower() for term in ["invoice", "receipt", "bill", "amount due", "total due", "subtotal", "payment terms"])
@@ -85,15 +88,28 @@ def extract_structured_data_live(text: str) -> dict:
     for attempt in range(1, 3):
         try:
             logger.info(f"LLM Extraction attempt {attempt} for model {settings.OPENAI_MODEL}")
-            response = client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_INSTRUCTION + "\n\n" + schema_prompt},
-                    {"role": "user", "content": f"Document text to extract:\n\n{text}"}
-                ],
-                temperature=0.0,
-                response_format={"type": "json_object"}
-            )
+            try:
+                # Attempt with structured outputs (JSON Mode)
+                response = client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_INSTRUCTION + "\n\n" + schema_prompt},
+                        {"role": "user", "content": f"Document text to extract:\n\n{text}"}
+                    ],
+                    temperature=0.0,
+                    response_format={"type": "json_object"}
+                )
+            except Exception as json_mode_err:
+                # Fallback: some free models (e.g. on OpenRouter) do not support response_format parameter
+                logger.warning(f"JSON Mode not supported by endpoint, retrying without response_format: {str(json_mode_err)}")
+                response = client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_INSTRUCTION + "\n\n" + schema_prompt},
+                        {"role": "user", "content": f"Document text to extract:\n\n{text}"}
+                    ],
+                    temperature=0.0
+                )
             
             raw_response = response.choices[0].message.content
             if not raw_response:
