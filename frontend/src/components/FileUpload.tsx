@@ -175,7 +175,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onUploadSuccess, backend
           ) : (
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           )}
-          <span className="text-sm font-medium">{statusMsg.text}</span>
+          <span className="text-sm font-medium break-all">{statusMsg.text}</span>
         </div>
       )}
     </div>
