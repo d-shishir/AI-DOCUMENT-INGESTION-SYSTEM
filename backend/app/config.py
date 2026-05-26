@@ -9,6 +9,14 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     
+    # Advanced RAG Configurations
+    CHUNK_SIZE: int = 500
+    CHUNK_OVERLAP: int = 100
+    RERANK_TOP_K: int = 3
+    VECTOR_SEARCH_LIMIT: int = 10
+    CACHE_TTL_SECONDS: int = 300
+    ENABLE_CACHE: bool = True
+    
     # CORS settings
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",  # default Vite React port

@@ -6,13 +6,14 @@ import logging
 from .config import settings
 from .database import get_db
 from .models import Document
-from .schemas import DocumentResponse, DocumentDetailResponse, SearchResultResponse, ChatRequest, ChatResponse
+from .schemas import DocumentResponse, DocumentDetailResponse, SearchResultResponse, ChatRequest, ChatResponse, SystemMetricsResponse
 from .pdf_processor import extract_text_from_pdf
 from .services.extractor import extract_structured_data
 from .services.chunker import split_text_into_chunks
 from .services.embeddings import get_embedding
 from .services.vector_store import save_document_chunks, search_similar_chunks
 from .services.rag_pipeline import ask_question_rag
+from .services.metrics import metrics_tracker
 
 # Configure logging
 logging.basicConfig(
@@ -81,6 +82,20 @@ def check_ai_connection():
             "provider": "API Connection Failure",
             "detail": str(e)
         }
+
+@app.get("/system-metrics", response_model=SystemMetricsResponse)
+def get_system_metrics(db: Session = Depends(get_db)):
+    """
+    Retrieves high-level performance metrics for the RAG pipeline.
+    """
+    try:
+        return metrics_tracker.get_metrics(db)
+    except Exception as e:
+        logger.exception("Failed to retrieve system metrics")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to compile metrics: {str(e)}"
+        )
 
 @app.post("/upload-document", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
