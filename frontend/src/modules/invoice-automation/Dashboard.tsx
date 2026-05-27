@@ -38,7 +38,7 @@ interface PayrollData {
   document_id: string;
   employee_name: string;
   salary: number;
-  deductions: any[];
+  deductions: unknown[];
   net_pay: number;
   payment_date: string | null;
   status: string;
@@ -199,16 +199,36 @@ export const Dashboard: React.FC<DashboardProps> = ({ backendUrl }) => {
 
   // Initial Load & Triggers
   useEffect(() => {
-    fetchStats();
-    fetchAnomalies();
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) {
+        fetchStats();
+        fetchAnomalies();
+      }
+    };
+    run();
+    return () => {
+      active = false;
+    };
   }, [fetchStats, fetchAnomalies]);
 
   useEffect(() => {
-    if (activeSubTab === "invoices") {
-      fetchInvoices();
-    } else {
-      fetchPayroll();
-    }
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) {
+        if (activeSubTab === "invoices") {
+          fetchInvoices();
+        } else {
+          fetchPayroll();
+        }
+      }
+    };
+    run();
+    return () => {
+      active = false;
+    };
   }, [activeSubTab, fetchInvoices, fetchPayroll]);
 
   // Resolve Anomaly Action Handler
@@ -229,14 +249,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ backendUrl }) => {
         try {
           const errorData = await res.json();
           errorText = errorData.detail || errorText;
-        } catch {}
+        } catch (e) {
+          console.warn("Failed to parse anomaly resolution error", e);
+        }
         setError(errorText);
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
       console.error("Error resolving anomaly:", err);
-      setError(err.message === "Failed to fetch" 
+      setError(errorMsg === "Failed to fetch" 
         ? "Database server connection lost. Please check if the API backend is running." 
-        : "Failed to resolve anomaly: " + (err.message || "Unknown error"));
+        : "Failed to resolve anomaly: " + errorMsg);
     } finally {
       setActionLoadingId(null);
     }
@@ -260,14 +283,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ backendUrl }) => {
         try {
           const errorData = await res.json();
           errorText = errorData.detail || errorText;
-        } catch {}
+        } catch (e) {
+          console.warn("Failed to parse document reprocessing error", e);
+        }
         setError(errorText);
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
       console.error("Error reprocessing document:", err);
-      setError(err.message === "Failed to fetch" 
+      setError(errorMsg === "Failed to fetch" 
         ? "Database server connection lost. Please check if the API backend is running." 
-        : "Failed to reprocess document: " + (err.message || "Unknown error"));
+        : "Failed to reprocess document: " + errorMsg);
     } finally {
       setActionLoadingId(null);
     }

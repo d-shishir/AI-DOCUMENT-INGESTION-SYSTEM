@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-darkBg: #06070a;
-  --color-darkPanel: #0c0e14;
-  --color-darkBorder: #1f2330;
-  --color-darkMuted: #60697a;
-  --color-neonTeal: #f59e0b;     /* Remapped to Cyber Amber */
-  --color-neonIndigo: #10b981;   /* Remapped to Matrix Green */
+  --color-darkBg: #05060b;
+  --color-darkPanel: #0b0d16;
+  --color-darkBorder: #1a1e2d;
+  --color-darkMuted: #717d96;
+  --color-neonTeal: #38bdf8;     /* Warm vibrant Cyan */
+  --color-neonIndigo: #6366f1;   /* Indigo */
   
   --font-sans: "Outfit", "system-ui", "sans-serif";
   --font-display: "Syne", "sans-serif";
@@ -16,41 +16,43 @@
 @layer base {
   body {
     background-color: var(--color-darkBg);
-    color: #e2e8f0;
+    color: #f1f5f9;
     -webkit-font-smoothing: antialiased;
     font-family: var(--font-sans);
     background-image: 
-      /* Micro grid pattern */
-      radial-gradient(rgba(245, 158, 11, 0.04) 1px, transparent 1px),
-      /* Glowing corners */
-      radial-gradient(at 0% 0%, rgba(245, 158, 11, 0.04) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.03) 0px, transparent 50%);
-    background-size: 24px 24px, 100% 100%, 100% 100%;
+      /* Clean micro dots */
+      radial-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+      /* Glowing ambient highlights */
+      radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.06) 0px, transparent 40%),
+      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 40%),
+      radial-gradient(at 50% 100%, rgba(245, 158, 11, 0.03) 0px, transparent 50%);
+    background-size: 32px 32px, 100% 100%, 100% 100%, 100% 100%;
   }
 }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #06070a;
+  background: #05060b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1f2330;
-  border-radius: 0px;
+  background: #1a1e2d;
+  border-radius: 99px;
+  border: 2px solid #05060b;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #f59e0b;
+  background: #38bdf8;
 }
 
 /* Custom animations & keyframes */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -64,9 +66,9 @@
   50% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.25), inset 0 0 10px rgba(245, 158, 11, 0.1); }
 }
 
-@keyframes pulse-glow-green {
-  0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.1), inset 0 0 5px rgba(16, 185, 129, 0.05); }
-  50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.25), inset 0 0 10px rgba(16, 185, 129, 0.1); }
+@keyframes pulse-glow-indigo {
+  0%, 100% { box-shadow: 0 0 8px rgba(99, 102, 241, 0.1), inset 0 0 8px rgba(99, 102, 241, 0.05); }
+  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 12px rgba(99, 102, 241, 0.15); }
 }
 
 @keyframes radar-sweep {
@@ -75,63 +77,102 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-slideLeft {
-  animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Custom cyber-panel layouts */
-.cyber-panel {
+/* Premium Glass Panel UI */
+.glass-panel {
   position: relative;
-  background-color: rgba(12, 14, 20, 0.45);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(31, 35, 48, 0.85);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  background: rgba(11, 13, 22, 0.4);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(26, 30, 45, 0.8);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cyber-panel::before {
+.glass-panel-hover:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+  transform: translateY(-2px);
+}
+
+.glass-panel::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.15), transparent);
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.2), transparent);
 }
 
 .glow-amber-pulse {
-  animation: pulse-glow-amber 2s infinite ease-in-out;
+  animation: pulse-glow-amber 2.5s infinite ease-in-out;
 }
 
-.glow-green-pulse {
-  animation: pulse-glow-green 2s infinite ease-in-out;
+.glow-indigo-pulse {
+  animation: pulse-glow-indigo 2.5s infinite ease-in-out;
 }
 
 .radar-line {
   position: absolute;
   width: 100%;
   height: 100%;
-  background: conic-gradient(from 0deg, transparent 50%, rgba(245, 158, 11, 0.08) 100%);
+  background: conic-gradient(from 0deg, transparent 50%, rgba(99, 102, 241, 0.1) 100%);
   border-radius: 50%;
-  animation: radar-sweep 4s linear infinite;
+  animation: radar-sweep 5s linear infinite;
 }
 
-/* Custom telemetry text styling */
-.scanlines-overlay {
+/* Beautiful Switch Toggle */
+.switch-toggle {
   position: relative;
-  overflow: hidden;
+  display: inline-block;
+  width: 44px;
+  height: 22px;
 }
 
-.scanlines-overlay::after {
-  content: " ";
-  display: block;
-  position: absolute;
-  top: 0; left: 0; bottom: 0; right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-  z-index: 2;
-  background-size: 100% 3px, 6px 100%;
-  pointer-events: none;
+.switch-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #1a1e2d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: .3s;
+  border-radius: 34px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #717d96;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .switch-slider {
+  background-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+input:checked + .switch-slider:before {
+  transform: translateX(22px);
+  background-color: #6366f1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.6);
+}
+
 

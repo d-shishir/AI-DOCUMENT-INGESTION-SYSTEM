@@ -75,7 +75,17 @@ export function CrmDashboard({ backendUrl }: CrmDashboardProps) {
   }, [backendUrl]);
 
   useEffect(() => {
-    fetchLeads();
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) {
+        fetchLeads();
+      }
+    };
+    run();
+    return () => {
+      active = false;
+    };
   }, [fetchLeads]);
 
   // Search trigger

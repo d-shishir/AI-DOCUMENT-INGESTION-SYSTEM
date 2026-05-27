@@ -3,7 +3,7 @@ import { FileUpload } from "./components/FileUpload";
 import { DocumentList } from "./components/DocumentList";
 import type { DocumentMetadata } from "./components/DocumentList";
 import { DocumentViewer } from "./components/DocumentViewer";
-import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff, Users } from "lucide-react";
+import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, CheckCircle2, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff, Users } from "lucide-react";
 import { Dashboard } from "./modules/invoice-automation/Dashboard";
 import { WorkflowDashboard } from "./modules/workflow-engine/WorkflowDashboard";
 import { CrmDashboard } from "./modules/crm-intelligence/CrmDashboard";
@@ -52,7 +52,7 @@ interface AIStatus {
   detail: string;
 }
 
-type WorkspaceTab = "catalog" | "search" | "chat" | "finance" | "workflows" | "crm" | "worker";
+type WorkspaceTab = "hub" | "assistant" | "automation" | "worker";
 
 interface SystemMetrics {
   documents_indexed: number;
@@ -70,8 +70,15 @@ function App() {
   // Connection status tracking
   const [apiConnected, setApiConnected] = useState<boolean>(true);
   
-  // Workspace Tab State
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("catalog");
+  // Workspace Tab States
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("hub");
+  const [assistantSubTab, setAssistantSubTab] = useState<"chat" | "search">("chat");
+  const [automationSubTab, setAutomationSubTab] = useState<"finance" | "crm" | "workflows">("finance");
+
+  // Simplified vs Developer Mode State
+  const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(false);
+
+
 
   // Semantic Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -102,6 +109,7 @@ function App() {
   const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
 
   const fetchDocuments = useCallback(async () => {
+    await Promise.resolve();
     setLoading(true);
     try {
       const response = await fetch(`${BACKEND_URL}/documents?is_deleted=false`);
@@ -117,9 +125,9 @@ function App() {
         setTrashDocuments(trashData);
       }
       setApiConnected(true);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching documents:", error);
-      if (error.message === "Failed to fetch") {
+      if (error instanceof Error && error.message === "Failed to fetch") {
         setApiConnected(false);
       }
     } finally {
@@ -182,7 +190,7 @@ function App() {
           detail: "Server returned non-200 status code."
         });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching AI status:", error);
       setAiStatus({
         status: "disconnected",
@@ -191,7 +199,7 @@ function App() {
         provider: "API Connection Failure",
         detail: "Could not reach the health endpoint."
       });
-      if (error.message === "Failed to fetch") {
+      if (error instanceof Error && error.message === "Failed to fetch") {
         setApiConnected(false);
       }
     }
@@ -205,15 +213,16 @@ function App() {
         setSystemMetrics(data);
         setApiConnected(true);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching system metrics:", error);
-      if (error.message === "Failed to fetch") {
+      if (error instanceof Error && error.message === "Failed to fetch") {
         setApiConnected(false);
       }
     }
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDocuments();
     fetchAIStatus();
     fetchSystemMetrics();
@@ -238,8 +247,9 @@ function App() {
       }
       const data = await res.json();
       setSearchResults(data);
-    } catch (err: any) {
-      setSearchError(err.message || "An error occurred during search.");
+    } catch (err) {
+      const error = err as Error;
+      setSearchError(error.message || "An error occurred during search.");
       setSearchResults([]);
     } finally {
       setSearching(false);
@@ -276,10 +286,11 @@ function App() {
       }]);
       // Auto-select the newly arrived message for debugging view
       setSelectedMessageIdx(messages.length + 1);
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as Error;
       setMessages(prev => [...prev, {
         sender: "assistant",
-        text: `Error: ${err.message || "Something went wrong while retrieving documents."}`
+        text: `Error: ${error.message || "Something went wrong while retrieving documents."}`
       }]);
     } finally {
       setChatting(false);
@@ -291,28 +302,51 @@ function App() {
     setChatInput(queryText);
   };
 
+  // Define tab navigation groups based on mode
+  const tabsList = [
+    { id: "hub", label: "Workspace Hub", num: "00", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
+    { id: "assistant", label: "Document Assistant", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: MessageSquare },
+    { id: "automation", label: "Business Automation", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sliders },
+    ...(isAdvancedMode ? [
+      { id: "worker", label: "Worker Queue", num: "03", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server }
+    ] : [])
+  ];
+
   return (
     <div className="min-h-screen pb-16 flex flex-col">
       {/* Navbar / Header */}
       <header className="border-b border-darkBorder bg-darkPanel/20 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-neonTeal/10 flex items-center justify-center text-neonTeal border border-neonTeal/20">
+            <div className="w-9 h-9 rounded-lg bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
               <h1 className="font-display font-extrabold text-gray-200 tracking-wider flex items-center gap-1.5 text-base uppercase">
                 Syntra OS
                 <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-neonIndigo/20 text-neonIndigo border border-neonIndigo/30 tracking-normal font-medium">
-                  Enterprise
+                  Workspace
                 </span>
               </h1>
               <p className="text-[9px] font-mono text-darkMuted uppercase tracking-wider mt-0.5">AI-Powered Operations Platform</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 text-xs">
-            {apiConnected && (
+          <div className="flex items-center gap-6 text-xs">
+            {/* Developer Mode switch toggle */}
+            <div className="flex items-center gap-2 border-r border-darkBorder/60 pr-6 mr-1">
+              <span className="text-xs text-darkMuted font-medium">Developer Mode</span>
+              <label className="switch-toggle">
+                <input 
+                  type="checkbox" 
+                  checked={isAdvancedMode} 
+                  onChange={(e) => setIsAdvancedMode(e.target.checked)} 
+                />
+                <span className="switch-slider"></span>
+              </label>
+            </div>
+
+            {isAdvancedMode && apiConnected && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-darkBorder/30 hover:bg-neonTeal/20 text-gray-300 hover:text-neonTeal border border-darkBorder/60 transition-all cursor-pointer mr-1"
@@ -327,7 +361,7 @@ function App() {
               <span className={`w-1.5 h-1.5 rounded-full ${apiConnected ? "bg-emerald-400 animate-ping" : "bg-rose-500 animate-pulse"}`} />
               {apiConnected ? "API Connected" : "API Offline"}
             </div>
-            {apiConnected && aiStatus && (
+            {apiConnected && aiStatus && isAdvancedMode && (
               <div className={`flex items-center gap-1.5 font-medium px-2 py-0.5 rounded border ${
                 aiStatus.status === "connected"
                   ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/5"
@@ -394,7 +428,7 @@ function App() {
         <main className="max-w-7xl w-full mx-auto px-6 mt-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Left Side: Upload & System Stats */}
-        {sidebarOpen ? (
+        {(isAdvancedMode ? sidebarOpen : (activeTab === "assistant")) ? (
           <div className="space-y-6 lg:col-span-1 animate-fadeIn">
             <div className="p-6 bg-darkPanel/30 border border-darkBorder rounded-xl space-y-4">
               <div>
@@ -405,45 +439,82 @@ function App() {
               <FileUpload 
                 onUploadSuccess={fetchDocuments}
                 backendUrl={BACKEND_URL}
+                isAdvancedMode={isAdvancedMode}
               />
             </div>
+
+            {/* Ingested Library Catalog */}
+            {activeTab === "assistant" && (
+              <div className="p-6 bg-darkPanel/30 border border-darkBorder rounded-xl space-y-4 max-h-[380px] overflow-y-auto">
+                <div className="flex justify-between items-center border-b border-darkBorder/40 pb-2">
+                  <h3 className="text-xs font-semibold text-darkMuted uppercase tracking-wider">
+                    Document Library ({documents.length})
+                  </h3>
+                </div>
+                <DocumentList
+                  documents={documents}
+                  trashDocuments={trashDocuments}
+                  onSelectDocument={setSelectedDocId}
+                  onTrashDocument={handleTrashDocument}
+                  onRestoreDocument={handleRestoreDocument}
+                  onDeleteDocument={handleDeleteDocument}
+                  isLoading={loading}
+                  sidebarOpen={true}
+                  isCompact={true}
+                />
+              </div>
+            )}
 
             {/* System status details */}
             <div className="p-6 bg-darkPanel/30 border border-darkBorder rounded-xl space-y-4">
               <h3 className="text-xs font-semibold text-darkMuted uppercase tracking-wider">
-                Pipeline Integration
+                {isAdvancedMode ? "Pipeline Integration" : "AI Core Integrations"}
               </h3>
               
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-neonTeal">
-                    <Server className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-300 font-medium">API Endpoint</p>
-                    <p className="text-[10px] text-darkMuted">FastAPI running on localhost:8000</p>
-                  </div>
-                </div>
+                {isAdvancedMode ? (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-neonTeal">
+                        <Server className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-300 font-medium">API Endpoint</p>
+                        <p className="text-[10px] text-darkMuted">FastAPI running on localhost:8000</p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-neonIndigo">
-                    <Database className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-300 font-medium">PostgreSQL Database</p>
-                    <p className="text-[10px] text-darkMuted">DB: doc_ingest | Port: 5433</p>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-neonIndigo">
+                        <Database className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-300 font-medium">PostgreSQL Database</p>
+                        <p className="text-[10px] text-darkMuted">DB: doc_ingest | Port: 5433</p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-yellow-400">
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-yellow-400">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-300 font-medium">Vector Store Setup</p>
+                        <p className="text-[10px] text-darkMuted">pgvector active (HNSW indexed)</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-300 font-medium">AI Systems Online</p>
+                      <p className="text-[10px] text-darkMuted font-mono">Ready for operations</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-300 font-medium">Vector Store Setup</p>
-                    <p className="text-[10px] text-darkMuted">pgvector active (HNSW indexed)</p>
-                  </div>
-                </div>
+                )}
 
                 <div className="flex items-center gap-3">
                   <div className={`w-7 h-7 rounded-lg bg-darkBorder/40 flex items-center justify-center ${
@@ -463,8 +534,12 @@ function App() {
                       {aiStatus ? (
                         <>
                           <span className="font-semibold">{aiStatus.provider}</span>
-                          <span className="block text-[9px] text-gray-400 mt-0.5">Chat: {aiStatus.model}</span>
-                          <span className="block text-[9px] text-gray-400">Embeddings: {aiStatus.embedding_model}</span>
+                          {isAdvancedMode && (
+                            <>
+                              <span className="block text-[9px] text-gray-400 mt-0.5">Chat: {aiStatus.model}</span>
+                              <span className="block text-[9px] text-gray-400">Embeddings: {aiStatus.embedding_model}</span>
+                            </>
+                          )}
                           <span className="block text-[9px] text-darkMuted mt-0.5">{aiStatus.detail}</span>
                         </>
                       ) : (
@@ -474,7 +549,7 @@ function App() {
                   </div>
                 </div>
 
-                {systemMetrics && (
+                {systemMetrics && isAdvancedMode && (
                   <>
                     <div className="border-t border-darkBorder/30 my-2 pt-2" />
                     
@@ -505,25 +580,17 @@ function App() {
         ) : null}
 
         {/* Right Side: Tabbed workspaces */}
-        <div className={`${sidebarOpen ? "lg:col-span-3" : "lg:col-span-4"} space-y-6 flex flex-col transition-all duration-300`}>
+        <div className={`${(isAdvancedMode ? sidebarOpen : (activeTab === "assistant")) ? "lg:col-span-3" : "lg:col-span-4"} space-y-6 flex flex-col transition-all duration-300`}>
           {/* Tab Selector Buttons */}
           <div className="flex flex-wrap gap-2 border-b border-darkBorder/60 pb-3">
-            {[
-              { id: "catalog", label: "Library Catalog", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: BookOpen },
-              { id: "chat", label: "RAG Chat Assistant", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: MessageSquare },
-              { id: "search", label: "Semantic Search", num: "03", activeColor: "border-yellow-500 text-yellow-500 bg-yellow-500/5", icon: Search },
-              { id: "finance", label: "Finance Operations", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Activity },
-              { id: "workflows", label: "Agent Workflows", num: "05", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
-              { id: "crm", label: "CRM & Sales Intel", num: "06", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Users },
-              { id: "worker", label: "Worker Queue", num: "07", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server }
-            ].map((tab) => {
+            {tabsList.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as WorkspaceTab)}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer rounded-none ${
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-[10px] font-mono font-bold uppercase tracking-wider border transition-all cursor-pointer rounded-lg ${
                     isActive
                       ? `${tab.activeColor} border-current`
                       : "border-darkBorder bg-darkPanel/10 text-darkMuted hover:text-gray-300 hover:border-darkBorder/100"
@@ -539,384 +606,575 @@ function App() {
 
           {/* Active Tab View Panels */}
           <div className="flex-1">
-            {activeTab === "catalog" && (
-              <div className="space-y-4 animate-fadeIn">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-200">Ingested Library</h2>
-                    <p className="text-xs text-darkMuted mt-0.5">
-                      Browse metadata and preview extracted text segments
+
+            {activeTab === "hub" && (
+              <div className="space-y-8 animate-fadeIn">
+                {/* Welcome Hero Panel */}
+                <div className="p-8 rounded-2xl bg-gradient-to-r from-neonIndigo/10 to-neonTeal/5 border border-darkBorder relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-neonIndigo/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-neonTeal/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
+                  
+                  <div className="relative z-10 max-w-2xl space-y-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neonIndigo bg-neonIndigo/10 px-2.5 py-1 rounded-full border border-neonIndigo/20">
+                      Syntra OS Operating System
+                    </span>
+                    <h2 className="text-3xl font-display font-extrabold text-white tracking-tight">
+                      Welcome to your Intelligent Document Workspace
+                    </h2>
+                    <p className="text-sm text-darkMuted leading-relaxed">
+                      Syntra OS automates document operations using high-performance AI engines. Ingest PDFs, search semantically, ask questions directly to your archive, or deploy extraction agents.
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-darkBorder/40 text-gray-300">
-                    {documents.length} {documents.length === 1 ? "document" : "documents"}
-                  </span>
                 </div>
 
-                <DocumentList
-                  documents={documents}
-                  trashDocuments={trashDocuments}
-                  onSelectDocument={setSelectedDocId}
-                  onTrashDocument={handleTrashDocument}
-                  onRestoreDocument={handleRestoreDocument}
-                  onDeleteDocument={handleDeleteDocument}
-                  isLoading={loading}
-                  sidebarOpen={sidebarOpen}
-                />
+                {/* Hub Options Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Library Catalog */}
+                  <div 
+                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("chat"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonTeal/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonTeal/10 flex items-center justify-center text-neonTeal border border-neonTeal/20 group-hover:bg-neonTeal/20 transition-all">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Library Catalog</h3>
+                        <p className="text-xs text-darkMuted mt-1">Browse, upload, and manage your processed document library.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonTeal font-medium pt-2">
+                      <span>{documents.length} Ingested Documents</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
+                  {/* RAG Chat Assistant */}
+                  <div 
+                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("chat"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Chat Assistant</h3>
+                        <p className="text-xs text-darkMuted mt-1">Ask questions and retrieve insights from all documents instantly.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
+                      <span>Talk with your archive</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
+                  {/* Semantic Search */}
+                  <div 
+                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("search"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-yellow-500/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center text-yellow-500 border border-yellow-500/20 group-hover:bg-yellow-500/20 transition-all">
+                        <Search className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Semantic Search</h3>
+                        <p className="text-xs text-darkMuted mt-1">Search text segments using concept matching rather than simple keywords.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-yellow-500 font-medium pt-2">
+                      <span>Concept-based lookup</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
+                  {/* Finance Operations */}
+                  <div 
+                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("finance"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonTeal/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonTeal/10 flex items-center justify-center text-neonTeal border border-neonTeal/20 group-hover:bg-neonTeal/20 transition-all">
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Finance Automation</h3>
+                        <p className="text-xs text-darkMuted mt-1">Audit payables, verify line items, and extract transaction stats.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonTeal font-medium pt-2">
+                      <span>Invoice & Expense Audit</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
+                  {/* Agent Workflows */}
+                  <div 
+                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("workflows"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
+                        <Cpu className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Agent Workflows</h3>
+                        <p className="text-xs text-darkMuted mt-1">Orchestrate automated steps like review, verification, and notifications.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
+                      <span>AI Operation Flows</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+
+                  {/* CRM & Sales Intelligence */}
+                  <div 
+                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("crm"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">CRM & Sales Intel</h3>
+                        <p className="text-xs text-darkMuted mt-1">Extract contact info, lead interest, and client priorities automatically.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
+                      <span>Lead Extraction Hub</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
-            {activeTab === "chat" && (
-              <div className={`grid grid-cols-1 ${sidebarOpen ? "xl:grid-cols-3 h-auto xl:h-[600px]" : "lg:grid-cols-3 h-auto lg:h-[600px]"} gap-6 animate-fadeIn`}>
-                {/* Left side: RAG Chat pane */}
-                <div className={`${sidebarOpen ? "xl:col-span-2 h-[550px] xl:h-full" : "lg:col-span-2 h-[550px] lg:h-full"} bg-darkPanel/20 border border-darkBorder rounded-xl p-5 flex flex-col justify-between space-y-4`}>
-                  {/* Chat Message Stream */}
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2 select-text">
-                    {messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex flex-col space-y-1 max-w-[85%] ${
-                          msg.sender === "user" ? "ml-auto items-end" : "mr-auto items-start"
-                        }`}
-                      >
-                        <div
-                          onClick={() => {
-                            if (msg.sender === "assistant") {
-                              setSelectedMessageIdx(index);
-                            }
-                          }}
-                          className={`p-3.5 rounded-xl text-sm leading-relaxed ${
-                            msg.sender === "assistant" ? "cursor-pointer hover:border-darkBorder/100 transition-colors" : ""
-                          } ${
-                            selectedMessageIdx === index
-                              ? "border-neonIndigo bg-darkPanel shadow-lg shadow-neonIndigo/5"
-                              : ""
-                          } ${
-                            msg.sender === "user"
-                              ? "bg-darkBorder/80 text-white rounded-br-none"
-                              : "bg-darkPanel border border-darkBorder/80 text-gray-200 rounded-bl-none"
-                          }`}
-                        >
-                          {msg.text}
-                        </div>
+            {activeTab === "assistant" && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* Sub Tab Navigation (AI Chat vs Semantic Search) */}
+                <div className="flex gap-2 border-b border-darkBorder/40 pb-2.5">
+                  <button
+                    onClick={() => setAssistantSubTab("chat")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      assistantSubTab === "chat"
+                        ? "bg-neonIndigo/10 text-neonIndigo border border-neonIndigo/20"
+                        : "text-darkMuted hover:text-gray-200"
+                    }`}
+                  >
+                    AI Chat Assistant
+                  </button>
+                  <button
+                    onClick={() => setAssistantSubTab("search")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      assistantSubTab === "search"
+                        ? "bg-neonTeal/10 text-neonTeal border border-neonTeal/20"
+                        : "text-darkMuted hover:text-gray-200"
+                    }`}
+                  >
+                    Semantic Search
+                  </button>
+                </div>
 
-                        {/* Display ground sources / citations for assistant answers */}
-                        {msg.sender === "assistant" && msg.sources && msg.sources.length > 0 && (
-                          <div className="w-full mt-1.5 space-y-1">
-                            <button
-                              onClick={() => setExpandedSourceIdx(expandedSourceIdx === index ? null : index)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-neonIndigo hover:text-neonIndigo/80 uppercase tracking-wide transition-colors"
+                {assistantSubTab === "chat" ? (
+                  <div className={`grid grid-cols-1 ${isAdvancedMode ? (sidebarOpen ? "xl:grid-cols-3 h-auto xl:h-[600px]" : "lg:grid-cols-3 h-auto lg:h-[600px]") : "h-auto xl:h-[600px]"} gap-6`}>
+                    {/* Left side: RAG Chat pane */}
+                    <div className={`${isAdvancedMode ? (sidebarOpen ? "xl:col-span-2 h-[550px] xl:h-full" : "lg:col-span-2 h-[550px] lg:h-full") : "col-span-1 h-[550px] xl:h-full"} bg-darkPanel/20 border border-darkBorder rounded-xl p-5 flex flex-col justify-between space-y-4`}>
+                      {/* Chat Message Stream */}
+                      <div className="flex-1 overflow-y-auto space-y-4 pr-2 select-text">
+                        {messages.map((msg, index) => (
+                          <div
+                            key={index}
+                            className={`flex flex-col space-y-1 max-w-[85%] ${
+                              msg.sender === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                            }`}
+                          >
+                            <div
+                              onClick={() => {
+                                if (msg.sender === "assistant") {
+                                  setSelectedMessageIdx(index);
+                                }
+                              }}
+                              className={`p-3.5 rounded-xl text-sm leading-relaxed ${
+                                msg.sender === "assistant" ? "cursor-pointer hover:border-darkBorder/100 transition-colors" : ""
+                              } ${
+                                selectedMessageIdx === index
+                                  ? "border-neonIndigo bg-darkPanel shadow-lg shadow-neonIndigo/5"
+                                  : ""
+                              } ${
+                                msg.sender === "user"
+                                  ? "bg-darkBorder/80 text-white rounded-br-none"
+                                  : "bg-darkPanel border border-darkBorder/80 text-gray-200 rounded-bl-none"
+                              }`}
                             >
-                              <span>Sources & Citations ({msg.sources.length})</span>
-                              {expandedSourceIdx === index ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </button>
+                              {msg.text}
+                            </div>
 
-                            {expandedSourceIdx === index && (
-                              <div className="space-y-2 p-3 bg-darkBg/50 border border-darkBorder/50 rounded-xl mt-1 max-w-lg animate-fadeIn text-xs text-darkMuted leading-relaxed">
-                                {msg.sources.map((src, sIdx) => (
-                                  <div key={sIdx} className="border-b border-darkBorder/30 pb-2 last:border-b-0 last:pb-0">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="font-semibold text-gray-300 truncate max-w-[180px]">{src.filename}</span>
-                                      <span className="text-[10px] text-neonTeal">{(src.score * 100).toFixed(1)}% similarity</span>
-                                    </div>
-                                    <p className="italic text-[11px] bg-darkPanel/35 p-2 rounded text-darkMuted select-text">
-                                      "{src.chunk_text}"
-                                    </p>
+                            {/* Display ground sources / citations for assistant answers */}
+                            {msg.sender === "assistant" && msg.sources && msg.sources.length > 0 && (
+                              <div className="w-full mt-1.5 space-y-1">
+                                <button
+                                  onClick={() => setExpandedSourceIdx(expandedSourceIdx === index ? null : index)}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-neonIndigo hover:text-neonIndigo/80 uppercase tracking-wide transition-colors"
+                                >
+                                  <span>Sources & Citations ({msg.sources.length})</span>
+                                  {expandedSourceIdx === index ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+
+                                {expandedSourceIdx === index && (
+                                  <div className="space-y-2 p-3 bg-darkBg/50 border border-darkBorder/50 rounded-xl mt-1 max-w-lg animate-fadeIn text-xs text-darkMuted leading-relaxed">
+                                    {msg.sources.map((src, sIdx) => (
+                                      <div key={sIdx} className="border-b border-darkBorder/30 pb-2 last:border-b-0 last:pb-0">
+                                        <div className="flex justify-between items-center mb-1">
+                                          <span className="font-semibold text-gray-300 truncate max-w-[180px]">{src.filename}</span>
+                                          <span className="text-[10px] text-neonTeal">
+                                            {isAdvancedMode ? `${(src.score * 100).toFixed(1)}% similarity` : "Highly Relevant Match"}
+                                          </span>
+                                        </div>
+                                        <p className="italic text-[11px] bg-darkPanel/35 p-2 rounded text-darkMuted select-text">
+                                          "{src.chunk_text}"
+                                        </p>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
                               </div>
                             )}
                           </div>
+                        ))}
+
+                        {/* Thinking Loader */}
+                        {chatting && (
+                          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-darkPanel border border-darkBorder/80 max-w-[200px] text-xs text-darkMuted mr-auto">
+                            <Loader2 className="w-3.5 h-3.5 text-neonIndigo animate-spin" />
+                            Retrieving context...
+                          </div>
                         )}
+                        <div ref={chatEndRef} />
                       </div>
-                    ))}
 
-                    {/* Thinking Loader */}
-                    {chatting && (
-                      <div className="flex items-center gap-2.5 p-3 rounded-xl bg-darkPanel border border-darkBorder/80 max-w-[200px] text-xs text-darkMuted mr-auto">
-                        <Loader2 className="w-3.5 h-3.5 text-neonIndigo animate-spin" />
-                        Retrieving context...
-                      </div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
+                      {/* Chat Suggestion Prompt Chips */}
+                      {messages.length === 1 && (
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-darkBorder/40">
+                          <button
+                            onClick={() => selectSuggestion("What is the invoice amount for Canada Post?")}
+                            className="px-3 py-1.5 text-[11px] font-medium text-darkMuted hover:text-white bg-darkBg/40 hover:bg-darkBorder/60 border border-darkBorder/60 rounded-full transition-all cursor-pointer"
+                          >
+                            "What is the invoice amount?"
+                          </button>
+                          <button
+                            onClick={() => selectSuggestion("Summarize the key points of the documents")}
+                            className="px-3 py-1.5 text-[11px] font-medium text-darkMuted hover:text-white bg-darkBg/40 hover:bg-darkBorder/60 border border-darkBorder/60 rounded-full transition-all cursor-pointer"
+                          >
+                            "Summarize the key points"
+                          </button>
+                        </div>
+                      )}
 
-                  {/* Chat Suggestion Prompt Chips */}
-                  {messages.length === 1 && (
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-darkBorder/40">
-                      <button
-                        onClick={() => selectSuggestion("What is the invoice amount for Canada Post?")}
-                        className="px-3 py-1.5 text-[11px] font-medium text-darkMuted hover:text-white bg-darkBg/40 hover:bg-darkBorder/60 border border-darkBorder/60 rounded-full transition-all cursor-pointer"
-                      >
-                        "What is the invoice amount?"
-                      </button>
-                      <button
-                        onClick={() => selectSuggestion("Summarize the key points of the documents")}
-                        className="px-3 py-1.5 text-[11px] font-medium text-darkMuted hover:text-white bg-darkBg/40 hover:bg-darkBorder/60 border border-darkBorder/60 rounded-full transition-all cursor-pointer"
-                      >
-                        "Summarize the key points"
-                      </button>
+                      {/* Chat Input Field Form */}
+                      <form onSubmit={handleSendMessage} className="flex gap-2 pt-3 border-t border-darkBorder/50">
+                        <input
+                          type="text"
+                          placeholder="Ask a question about the document context..."
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          className="flex-1 bg-darkBg/60 border border-darkBorder focus:border-neonIndigo rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder:text-darkMuted outline-none transition-all"
+                          disabled={chatting}
+                        />
+                        <button
+                          type="submit"
+                          disabled={chatting || !chatInput.trim()}
+                          className="px-4 py-2.5 text-xs font-semibold text-white bg-neonIndigo hover:bg-neonIndigo/80 disabled:bg-neonIndigo/50 rounded-lg shadow-lg shadow-neonIndigo/10 flex items-center justify-center shrink-0 cursor-pointer"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
                     </div>
-                  )}
 
-                  {/* Chat Input Field Form */}
-                  <form onSubmit={handleSendMessage} className="flex gap-2 pt-3 border-t border-darkBorder/50">
-                    <input
-                      type="text"
-                      placeholder="Ask a question about the document context..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      className="flex-1 bg-darkBg/60 border border-darkBorder focus:border-neonIndigo rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder:text-darkMuted outline-none transition-all"
-                      disabled={chatting}
-                    />
-                    <button
-                      type="submit"
-                      disabled={chatting || !chatInput.trim()}
-                      className="px-4 py-2.5 text-xs font-semibold text-white bg-neonIndigo hover:bg-neonIndigo/80 disabled:bg-neonIndigo/50 rounded-lg shadow-lg shadow-neonIndigo/10 flex items-center justify-center shrink-0 cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  </form>
-                </div>
-
-                {/* Right side: Retrieval & Latency Debugger Panel */}
-                <div className={`${sidebarOpen ? "xl:col-span-1 h-[450px] xl:h-full" : "lg:col-span-1 h-[450px] lg:h-full"} bg-darkPanel/35 border border-darkBorder rounded-xl p-5 flex flex-col space-y-4 overflow-y-auto`}>
-                  <div className="flex items-center justify-between border-b border-darkBorder/40 pb-2">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-neonIndigo uppercase tracking-wider">
-                      <Sliders className="w-3.5 h-3.5" />
-                      <span>RAG Diagnostics</span>
-                    </div>
-                    {selectedMessageIdx !== null && messages[selectedMessageIdx]?.metrics?.cache_hit && (
-                      <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 animate-pulse">
-                        <Zap className="w-2.5 h-2.5" /> Cache Hit
-                      </span>
-                    )}
-                  </div>
-
-                  {selectedMessageIdx !== null && messages[selectedMessageIdx]?.sender === "assistant" && messages[selectedMessageIdx]?.metrics ? (
-                    (() => {
-                      const activeMsg = messages[selectedMessageIdx];
-                      const metrics = activeMsg.metrics!;
-                      
-                      return (
-                        <div className="space-y-4 text-xs select-text">
-                          {/* Query Rewriting */}
-                          <div>
-                            <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block mb-1">
-                              Query Rewriting
-                            </span>
-                            <div className="p-3 bg-darkBg/50 border border-darkBorder/50 rounded-lg space-y-1.5">
-                              <div>
-                                <p className="text-[9px] text-darkMuted font-bold uppercase tracking-wider">User Query</p>
-                                <p className="text-gray-300 italic">"{messages[selectedMessageIdx - 1]?.text || "Unknown"}"</p>
-                              </div>
-                              <div className="border-t border-darkBorder/20 my-1.5" />
-                              <div>
-                                <p className="text-[9px] text-neonIndigo font-bold uppercase tracking-wider">Optimized Retrieval Query</p>
-                                <p className="text-gray-200 font-semibold italic">"{activeMsg.query_rewritten || "Original query used"}"</p>
-                              </div>
-                            </div>
+                    {/* Right side: Retrieval & Latency Debugger Panel */}
+                    {isAdvancedMode && (
+                      <div className={`${sidebarOpen ? "xl:col-span-1 h-[450px] xl:h-full" : "lg:col-span-1 h-[450px] lg:h-full"} bg-darkPanel/35 border border-darkBorder rounded-xl p-5 flex flex-col space-y-4 overflow-y-auto`}>
+                        <div className="flex items-center justify-between border-b border-darkBorder/40 pb-2">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-neonIndigo uppercase tracking-wider">
+                            <Sliders className="w-3.5 h-3.5" />
+                            <span>RAG Diagnostics</span>
                           </div>
-
-                          {/* Latency Metrics */}
-                          <div>
-                            <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block mb-2">
-                              Execution Latency
+                          {selectedMessageIdx !== null && messages[selectedMessageIdx]?.metrics?.cache_hit && (
+                            <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 animate-pulse">
+                              <Zap className="w-2.5 h-2.5" /> Cache Hit
                             </span>
-                            <div className="space-y-2 p-3 bg-darkBg/50 border border-darkBorder/50 rounded-lg">
-                              {/* Total Latency header */}
-                              <div className="flex justify-between items-center text-xs font-semibold text-gray-200 border-b border-darkBorder/30 pb-1.5">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3 text-neonTeal" /> Total Time
-                                </span>
-                                <span className="text-neonTeal">{metrics.total_time_ms} ms</span>
-                              </div>
-                              
-                              {/* Breakdown Progress Bars */}
-                              <div className="space-y-2 pt-1">
-                                {[
-                                  { label: "Query Rewrite", val: metrics.rewrite_time_ms, color: "bg-purple-500" },
-                                  { label: "Embedding Gen", val: metrics.embedding_time_ms, color: "bg-blue-500" },
-                                  { label: "Vector DB Search", val: metrics.db_time_ms, color: "bg-emerald-500" },
-                                  { label: "Lexical Reranker", val: metrics.rerank_time_ms, color: "bg-yellow-500" },
-                                  { label: "LLM Generation", val: metrics.generation_time_ms, color: "bg-pink-500" }
-                                ].map((item, i) => {
-                                  const percentage = metrics.total_time_ms > 0 ? (item.val / metrics.total_time_ms) * 100 : 0;
-                                  return (
-                                    <div key={i} className="space-y-0.5">
-                                      <div className="flex justify-between text-[10px] text-darkMuted">
-                                        <span>{item.label}</span>
-                                        <span>{item.val.toFixed(1)} ms</span>
-                                      </div>
-                                      <div className="w-full bg-darkBorder/30 h-1.5 rounded overflow-hidden">
-                                        <div className={`h-full ${item.color}`} style={{ width: `${percentage}%` }} />
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Source Chunks (Reranked) */}
-                          {activeMsg.sources && activeMsg.sources.length > 0 && (
-                            <div className="space-y-1.5">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider">
-                                  Top Reranked Chunks
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowRetrievedChunks(!showRetrievedChunks)}
-                                  className="text-[9px] font-bold uppercase tracking-wider text-neonTeal flex items-center gap-0.5 cursor-pointer"
-                                >
-                                  {showRetrievedChunks ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                  {showRetrievedChunks ? "Hide Chunks" : "Show Chunks"}
-                                </button>
-                              </div>
-                              
-                              {showRetrievedChunks && (
-                                <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                                  {activeMsg.sources.map((src, sIdx) => (
-                                    <div key={sIdx} className="p-2.5 bg-darkBg/50 border border-darkBorder/50 rounded-lg space-y-1">
-                                      <div className="flex justify-between items-center text-[10px] text-darkMuted">
-                                        <span className="font-semibold text-gray-300 truncate max-w-[130px]">{src.filename}</span>
-                                        <span className="text-neonTeal font-mono">{(src.score * 100).toFixed(1)}% match</span>
-                                      </div>
-                                      <p className="italic text-[10px] leading-normal bg-darkPanel/25 p-2 rounded border border-darkBorder/20 text-darkMuted select-text max-h-[60px] overflow-y-auto">
-                                        "{src.chunk_text}"
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
                           )}
                         </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="flex flex-col items-center justify-center flex-1 text-center text-darkMuted p-4 select-none">
-                      <Sliders className="w-8 h-8 mb-2 stroke-1" />
-                      <p className="text-xs font-semibold text-gray-400">Retrieval Diagnostics</p>
-                      <p className="text-[10px] mt-1 max-w-[180px]">Select an assistant bubble message to view latency and search metrics.</p>
+
+                        {selectedMessageIdx !== null && messages[selectedMessageIdx]?.sender === "assistant" && messages[selectedMessageIdx]?.metrics ? (
+                          (() => {
+                            const activeMsg = messages[selectedMessageIdx];
+                            const metrics = activeMsg.metrics!;
+                            
+                            return (
+                              <div className="space-y-4 text-xs select-text">
+                                {/* Query Rewriting */}
+                                <div>
+                                  <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block mb-1">
+                                    Query Rewriting
+                                  </span>
+                                  <div className="p-3 bg-darkBg/50 border border-darkBorder/50 rounded-lg space-y-1.5">
+                                    <div>
+                                      <p className="text-[9px] text-darkMuted font-bold uppercase tracking-wider">User Query</p>
+                                      <p className="text-gray-300 italic">"{messages[selectedMessageIdx - 1]?.text || "Unknown"}"</p>
+                                    </div>
+                                    <div className="border-t border-darkBorder/20 my-1.5" />
+                                    <div>
+                                      <p className="text-[9px] text-neonIndigo font-bold uppercase tracking-wider">Optimized Retrieval Query</p>
+                                      <p className="text-gray-200 font-semibold italic">"{activeMsg.query_rewritten || "Original query used"}"</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Latency Metrics */}
+                                <div>
+                                  <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block mb-2">
+                                    Execution Latency
+                                  </span>
+                                  <div className="space-y-2 p-3 bg-darkBg/50 border border-darkBorder/50 rounded-lg">
+                                    {/* Total Latency header */}
+                                    <div className="flex justify-between items-center text-xs font-semibold text-gray-200 border-b border-darkBorder/30 pb-1.5">
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-neonTeal" /> Total Time
+                                      </span>
+                                      <span className="text-neonTeal">{metrics.total_time_ms} ms</span>
+                                    </div>
+                                    
+                                    {/* Breakdown Progress Bars */}
+                                    <div className="space-y-2 pt-1">
+                                      {[
+                                        { label: "Query Rewrite", val: metrics.rewrite_time_ms, color: "bg-purple-500" },
+                                        { label: "Embedding Gen", val: metrics.embedding_time_ms, color: "bg-blue-500" },
+                                        { label: "Vector DB Search", val: metrics.db_time_ms, color: "bg-emerald-500" },
+                                        { label: "Lexical Reranker", val: metrics.rerank_time_ms, color: "bg-yellow-500" },
+                                        { label: "LLM Generation", val: metrics.generation_time_ms, color: "bg-pink-500" }
+                                      ].map((item, i) => {
+                                        const percentage = metrics.total_time_ms > 0 ? (item.val / metrics.total_time_ms) * 100 : 0;
+                                        return (
+                                          <div key={i} className="space-y-0.5">
+                                            <div className="flex justify-between text-[10px] text-darkMuted">
+                                              <span>{item.label}</span>
+                                              <span>{item.val.toFixed(1)} ms</span>
+                                            </div>
+                                            <div className="w-full bg-darkBorder/30 h-1.5 rounded overflow-hidden">
+                                              <div className={`h-full ${item.color}`} style={{ width: `${percentage}%` }} />
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Source Chunks (Reranked) */}
+                                {activeMsg.sources && activeMsg.sources.length > 0 && (
+                                  <div className="space-y-1.5">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider">
+                                        Top Reranked Chunks
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowRetrievedChunks(!showRetrievedChunks)}
+                                        className="text-[9px] font-bold uppercase tracking-wider text-neonTeal flex items-center gap-0.5 cursor-pointer"
+                                      >
+                                        {showRetrievedChunks ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                        {showRetrievedChunks ? "Hide Chunks" : "Show Chunks"}
+                                      </button>
+                                    </div>
+                                    
+                                    {showRetrievedChunks && (
+                                      <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                                        {activeMsg.sources.map((src, sIdx) => (
+                                          <div key={sIdx} className="p-2.5 bg-darkBg/50 border border-darkBorder/50 rounded-lg space-y-1">
+                                            <div className="flex justify-between items-center text-[10px] text-darkMuted">
+                                              <span className="font-semibold text-gray-300 truncate max-w-[130px]">{src.filename}</span>
+                                              <span className="text-neonTeal font-mono">{(src.score * 100).toFixed(1)}% match</span>
+                                            </div>
+                                            <p className="italic text-[10px] leading-normal bg-darkPanel/25 p-2 rounded border border-darkBorder/20 text-darkMuted select-text max-h-[60px] overflow-y-auto">
+                                              "{src.chunk_text}"
+                                            </p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div className="flex flex-col items-center justify-center flex-1 text-center text-darkMuted p-4 select-none">
+                            <Sliders className="w-8 h-8 mb-2 stroke-1" />
+                            <p className="text-xs font-semibold text-gray-400">Retrieval Diagnostics</p>
+                            <p className="text-[10px] mt-1 max-w-[180px]">Select an assistant bubble message to view latency and search metrics.</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-6 bg-darkPanel/20 border border-darkBorder rounded-xl space-y-6 animate-fadeIn">
+                    <div>
+                      <h2 className="text-base font-semibold text-gray-200 flex items-center gap-2">
+                        <Search className="w-4 h-4 text-neonTeal" />
+                        Semantic Search Engine
+                      </h2>
+                      <p className="text-xs text-darkMuted mt-0.5">
+                        Query document segments by semantic meaning using vectorized concept matching
+                      </p>
                     </div>
+
+                    {/* Search Input Bar */}
+                    <form onSubmit={handleSearch} className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="e.g., invoice payment details or document summary..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full bg-darkBg/60 border border-darkBorder focus:border-neonTeal/80 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder:text-darkMuted outline-none transition-all"
+                        />
+                        <Search className="w-4 h-4 text-darkMuted absolute left-3.5 top-3.5" />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={searching}
+                        className="px-5 py-2.5 text-xs font-semibold text-white bg-neonTeal hover:bg-neonTeal/90 border border-neonTeal/30 disabled:bg-sky-850 rounded-lg flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
+                      >
+                        {searching ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Searching...
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3.5 h-3.5" />
+                            Search
+                          </>
+                        )}
+                      </button>
+                    </form>
+
+                    {/* Search Result Snippets */}
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                      {searching ? (
+                        <div className="py-12 flex flex-col items-center justify-center gap-3">
+                          <Loader2 className="w-8 h-8 text-neonTeal animate-spin" />
+                          <p className="text-xs text-darkMuted">Searching database vectors...</p>
+                        </div>
+                      ) : searchError ? (
+                        <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-medium">
+                          {searchError}
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        <div className="space-y-3 animate-fadeIn">
+                          <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block">
+                            Top Semantic Matches
+                          </span>
+                          
+                          {searchResults.map((result, idx) => (
+                            <div
+                              key={idx}
+                              className="p-4 bg-darkBg/35 border border-darkBorder hover:border-neonTeal/40 rounded-xl space-y-2.5 transition-colors group relative"
+                            >
+                              <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-300">{result.filename}</span>
+                                  {isAdvancedMode && <span className="text-[10px] text-darkMuted">Chunk #{result.chunk_index}</span>}
+                                </div>
+                                
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-semibold text-neonTeal">
+                                    {isAdvancedMode ? `${(result.similarity * 100).toFixed(1)}% match` : "Relevant Match"}
+                                  </span>
+                                  
+                                  <button
+                                    onClick={() => setSelectedDocId(result.document_id)}
+                                    className="p-1 rounded bg-darkBorder/60 hover:bg-neonTeal hover:text-darkBg text-gray-400 transition-colors cursor-pointer"
+                                    title="Open document workspace"
+                                  >
+                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-darkMuted leading-relaxed italic bg-darkPanel/20 p-3 rounded-lg border border-darkBorder/50 font-sans group-hover:text-gray-200 transition-colors whitespace-pre-wrap select-text">
+                                "{result.content}"
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : searched ? (
+                        <div className="text-center py-12 border border-dashed border-darkBorder rounded-xl bg-darkPanel/10">
+                          <HelpCircle className="w-8 h-8 text-darkMuted mx-auto mb-3 animate-pulse" />
+                          <p className="text-gray-300 font-medium">No matches found</p>
+                          <p className="text-xs text-darkMuted mt-1">Make sure you have indexed your ingested documents first.</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "automation" && (
+              <div className="space-y-6 animate-fadeIn">
+                {/* Sub Tab Navigation for Business Automation */}
+                <div className="flex flex-wrap gap-2 border-b border-darkBorder/40 pb-2.5">
+                  <button
+                    onClick={() => setAutomationSubTab("finance")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      automationSubTab === "finance"
+                        ? "bg-neonTeal/10 text-neonTeal border border-neonTeal/20"
+                        : "text-darkMuted hover:text-gray-200"
+                    }`}
+                  >
+                    Finance Invoices
+                  </button>
+                  <button
+                    onClick={() => setAutomationSubTab("crm")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      automationSubTab === "crm"
+                        ? "bg-neonIndigo/10 text-neonIndigo border border-neonIndigo/20"
+                        : "text-darkMuted hover:text-gray-200"
+                    }`}
+                  >
+                    CRM Lead Capture
+                  </button>
+                  <button
+                    onClick={() => setAutomationSubTab("workflows")}
+                    className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      automationSubTab === "workflows"
+                        ? "bg-neonIndigo/10 text-neonIndigo border border-neonIndigo/20"
+                        : "text-darkMuted hover:text-gray-200"
+                    }`}
+                  >
+                    Active Workflows
+                  </button>
+                </div>
+
+                <div className="mt-4">
+                  {automationSubTab === "finance" && (
+                    <Dashboard backendUrl={BACKEND_URL} />
+                  )}
+                  {automationSubTab === "crm" && (
+                    <CrmDashboard backendUrl={BACKEND_URL} />
+                  )}
+                  {automationSubTab === "workflows" && (
+                    <WorkflowDashboard backendUrl={BACKEND_URL} />
                   )}
                 </div>
               </div>
             )}
 
-            {activeTab === "search" && (
-              <div className="p-6 bg-darkPanel/20 border border-darkBorder rounded-xl space-y-6 animate-fadeIn">
-                <div>
-                  <h2 className="text-base font-semibold text-gray-200 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-yellow-500" />
-                    Semantic Search Engine
-                  </h2>
-                  <p className="text-xs text-darkMuted mt-0.5">
-                    Query document segments by semantic meaning (powered by high-dimensional embeddings)
-                  </p>
-                </div>
-
-                {/* Search Input Bar */}
-                <form onSubmit={handleSearch} className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      placeholder="e.g., invoice payment details or document summary..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-darkBg/60 border border-darkBorder focus:border-yellow-500/80 rounded-lg pl-10 pr-4 py-2.5 text-sm text-gray-200 placeholder:text-darkMuted outline-none transition-all"
-                    />
-                    <Search className="w-4 h-4 text-darkMuted absolute left-3.5 top-3.5" />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={searching}
-                    className="px-5 py-2.5 text-xs font-semibold text-white bg-yellow-650 hover:bg-yellow-600 border border-yellow-500/30 disabled:bg-yellow-800 rounded-lg flex items-center gap-1.5 transition-all shrink-0 cursor-pointer"
-                  >
-                    {searching ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Searching...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-3.5 h-3.5" />
-                        Search
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                {/* Search Result Snippets */}
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
-                  {searching ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-3">
-                      <Loader2 className="w-8 h-8 text-yellow-500 animate-spin" />
-                      <p className="text-xs text-darkMuted">Generating query embedding and querying pgvector indexes...</p>
-                    </div>
-                  ) : searchError ? (
-                    <div className="p-4 bg-rose-950/20 border border-rose-500/30 rounded-xl text-rose-300 text-xs font-medium">
-                      {searchError}
-                    </div>
-                  ) : searchResults.length > 0 ? (
-                    <div className="space-y-3">
-                      <span className="text-[10px] font-bold text-darkMuted uppercase tracking-wider block">
-                        Top Semantic Matches
-                      </span>
-                      
-                      {searchResults.map((result, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4 bg-darkBg/30 border border-darkBorder hover:border-yellow-500/40 rounded-xl space-y-2.5 transition-colors group relative"
-                        >
-                          <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-gray-300">{result.filename}</span>
-                              <span className="text-[10px] text-darkMuted">Chunk #{result.chunk_index}</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-semibold text-neonTeal">
-                                {(result.similarity * 100).toFixed(1)}% match
-                              </span>
-                              
-                              <button
-                                onClick={() => setSelectedDocId(result.document_id)}
-                                className="p-1 rounded bg-darkBorder/60 hover:bg-yellow-500 hover:text-darkBg text-gray-400 transition-colors"
-                                title="Open document workspace"
-                              >
-                                <ArrowUpRight className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <p className="text-xs text-darkMuted leading-relaxed italic bg-darkPanel/20 p-3 rounded-lg border border-darkBorder/50 font-sans group-hover:text-gray-200 transition-colors whitespace-pre-wrap select-text">
-                            "{result.content}"
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : searched ? (
-                    <div className="text-center py-12 border border-dashed border-darkBorder rounded-xl bg-darkPanel/10">
-                      <HelpCircle className="w-8 h-8 text-darkMuted mx-auto mb-3 animate-pulse" />
-                      <p className="text-gray-300 font-medium">No matches found</p>
-                      <p className="text-xs text-darkMuted mt-1">Make sure you have indexed your ingested documents first.</p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            )}
-            {activeTab === "finance" && (
-              <Dashboard backendUrl={BACKEND_URL} />
-            )}
-            {activeTab === "workflows" && (
-              <WorkflowDashboard backendUrl={BACKEND_URL} />
-            )}
-            {activeTab === "crm" && (
-              <CrmDashboard backendUrl={BACKEND_URL} />
-            )}
             {activeTab === "worker" && (
               <WorkerMonitor />
             )}

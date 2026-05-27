@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { 
   Play, Plus, CheckCircle2, XCircle, RefreshCw, 
   Loader2, Sparkles, Send, FileText, 
@@ -20,8 +20,8 @@ interface StepLog {
   execution_time_ms: number;
   retry_count: number;
   error?: string;
-  input_data?: any;
-  output_data?: any;
+  input_data?: unknown;
+  output_data?: unknown;
   created_at: string;
 }
 
@@ -30,12 +30,18 @@ interface WorkflowRun {
   workflow_id?: string;
   workflow_name: string;
   status: "success" | "failed" | "running" | "pending";
-  input_context: any;
-  output_context: any;
+  input_context: unknown;
+  output_context: unknown;
   started_at: string;
   completed_at?: string;
   error?: string;
   steps?: StepLog[];
+}
+
+interface DocumentInfo {
+  id: string;
+  filename: string;
+  document_type?: string;
 }
 
 interface WorkflowDashboardProps {
@@ -46,7 +52,7 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<WorkflowRun | null>(null);
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   
   // Forms & State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -75,7 +81,7 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     { name: "generate_report", desc: "Findings Document Assembly", icon: FileText }
   ];
 
-  const fetchWorkflows = async () => {
+  const fetchWorkflows = useCallback(async () => {
     try {
       const res = await fetch(`${backendUrl}/api/v1/workflows`);
       if (res.ok) {
@@ -85,9 +91,9 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     } catch (e) {
       console.error("Error loading workflows", e);
     }
-  };
+  }, [backendUrl]);
 
-  const fetchRuns = async () => {
+  const fetchRuns = useCallback(async () => {
     try {
       const res = await fetch(`${backendUrl}/api/v1/workflows/runs`);
       if (res.ok) {
@@ -97,9 +103,9 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     } catch (e) {
       console.error("Error loading workflow runs", e);
     }
-  };
+  }, [backendUrl]);
 
-  const fetchRunDetails = async (runId: string) => {
+  const fetchRunDetails = useCallback(async (runId: string) => {
     try {
       const res = await fetch(`${backendUrl}/api/v1/workflows/runs/${runId}`);
       if (res.ok) {
@@ -109,9 +115,9 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     } catch (e) {
       console.error("Error loading run details", e);
     }
-  };
+  }, [backendUrl]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch(`${backendUrl}/documents`);
       if (res.ok) {
@@ -121,12 +127,24 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     } catch (e) {
       console.error("Error loading documents", e);
     }
-  };
+  }, [backendUrl]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchWorkflows(), fetchRuns(), fetchDocuments()]).finally(() => setLoading(false));
-  }, []);
+    let active = true;
+    const run = async () => {
+      await Promise.resolve();
+      if (active) {
+        setLoading(true);
+        Promise.all([fetchWorkflows(), fetchRuns(), fetchDocuments()]).finally(() => {
+          if (active) setLoading(false);
+        });
+      }
+    };
+    run();
+    return () => {
+      active = false;
+    };
+  }, [fetchWorkflows, fetchRuns, fetchDocuments]);
 
   // Poll active runs if any are running
   useEffect(() => {
@@ -141,7 +159,7 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     }, 2000);
 
     return () => clearInterval(timer);
-  }, [runs, selectedRun]);
+  }, [runs, selectedRun, fetchRuns, fetchRunDetails]);
 
   const handleCreateWorkflow = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,10 +189,10 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
   };
 
   const handleRunWorkflow = async (workflowId: string) => {
-    let parsedInput = {};
+    let parsedInput: Record<string, unknown>;
     try {
-      parsedInput = JSON.parse(customInputContext);
-    } catch (err) {
+      parsedInput = JSON.parse(customInputContext) as Record<string, unknown>;
+    } catch {
       alert("Invalid JSON configuration in context input.");
       return;
     }
@@ -204,7 +222,7 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
     if (!goalPrompt.trim()) return;
 
     setPlanningAndRunning(true);
-    const inputContext: any = {};
+    const inputContext: Record<string, unknown> = {};
     if (selectedRunDocId.trim()) {
       inputContext["document_id"] = selectedRunDocId.trim();
     }
@@ -522,7 +540,7 @@ export function WorkflowDashboard({ backendUrl }: WorkflowDashboardProps) {
                             </p>
                           )}
 
-                          {step.output_data && (
+                          {!!step.output_data && (
                             <div className="space-y-1 pt-1 border-t border-darkBorder/20">
                               <p className="text-[8px] font-mono uppercase text-darkMuted">Output Context Payload</p>
                               <pre className="text-[10px] font-mono bg-darkBg/60 p-2 rounded max-h-[100px] overflow-y-auto text-gray-300 leading-normal">

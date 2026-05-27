@@ -6,7 +6,7 @@ import {
 interface TaskJob {
   id: string;
   task_type: string;
-  payload: Record<string, any> | null;
+  payload: Record<string, unknown> | null;
   status: "pending" | "processing" | "completed" | "failed";
   retry_count: number;
   max_retries: number;
@@ -73,12 +73,22 @@ export const WorkerMonitor: React.FC = () => {
 
   // Polling loop
   useEffect(() => {
-    refreshData();
+    let active = true;
+    const runInit = async () => {
+      await Promise.resolve();
+      if (active) {
+        refreshData();
+      }
+    };
+    runInit();
     const interval = setInterval(() => {
       fetchMetrics();
       fetchTasks();
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [fetchMetrics, fetchTasks, refreshData]);
 
   const handleRetryTask = async (jobId: string) => {

@@ -12,7 +12,10 @@ export interface DocumentMetadata {
   created_at: string;
   is_vectorized?: boolean;
   document_type?: string;
-  extracted_json?: Record<string, any> | null;
+  extracted_json?: {
+    indexing_method?: "live" | "mock" | null;
+    [key: string]: unknown;
+  } | null;
 }
 
 interface DocumentListProps {
@@ -24,6 +27,7 @@ interface DocumentListProps {
   onDeleteDocument: (id: string) => void;
   isLoading: boolean;
   sidebarOpen?: boolean;
+  isCompact?: boolean;
 }
 
 export const DocumentList: React.FC<DocumentListProps> = ({
@@ -35,8 +39,9 @@ export const DocumentList: React.FC<DocumentListProps> = ({
   onDeleteDocument,
   isLoading,
   sidebarOpen = true,
+  isCompact = false,
 }) => {
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "table">(isCompact ? "table" : "grid");
   const [activeTab, setActiveTab] = useState<"active" | "trash">("active");
 
   const formatBytes = (bytes: number) => {
@@ -112,30 +117,32 @@ export const DocumentList: React.FC<DocumentListProps> = ({
         </div>
 
         {/* View Layout Toggles */}
-        <div className="flex gap-2 self-end sm:self-auto">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-              viewMode === "grid"
-                ? "bg-neonTeal/15 text-neonTeal border-neonTeal/30"
-                : "bg-darkPanel/20 text-darkMuted border-darkBorder hover:text-gray-300"
-            }`}
-            title="Grid View"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("table")}
-            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-              viewMode === "table"
-                ? "bg-neonTeal/15 text-neonTeal border-neonTeal/30"
-                : "bg-darkPanel/20 text-darkMuted border-darkBorder hover:text-gray-300"
-            }`}
-            title="List View"
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
+        {!isCompact && (
+          <div className="flex gap-2 self-end sm:self-auto">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-neonTeal/15 text-neonTeal border-neonTeal/30"
+                  : "bg-darkPanel/20 text-darkMuted border-darkBorder hover:text-gray-300"
+              }`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-neonTeal/15 text-neonTeal border-neonTeal/30"
+                  : "bg-darkPanel/20 text-darkMuted border-darkBorder hover:text-gray-300"
+              }`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {displayedDocs.length === 0 ? (
@@ -149,6 +156,57 @@ export const DocumentList: React.FC<DocumentListProps> = ({
               ? "Upload a PDF to get started with text extraction" 
               : "Items moved to trash will appear here."}
           </p>
+        </div>
+      ) : isCompact ? (
+        /* Compact Vertical Stack for Sidebar */
+        <div className="space-y-2">
+          {displayedDocs.map((doc) => (
+            <div 
+              key={doc.id}
+              onClick={() => onSelectDocument(doc.id)}
+              className="p-3 bg-darkBg/50 border border-darkBorder hover:border-neonTeal/40 rounded-xl flex items-center justify-between gap-3 group cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-neonTeal/5 flex items-center justify-center text-neonTeal shrink-0 group-hover:scale-105 transition-transform">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-200 truncate group-hover:text-white" title={doc.filename}>
+                    {doc.filename}
+                  </p>
+                  <p className="text-[10px] text-darkMuted">
+                    {formatBytes(doc.file_size)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                {activeTab === "active" ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTrashDocument(doc.id);
+                    }}
+                    className="p-1 rounded bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 hover:border-red-500 transition-all cursor-pointer"
+                    title="Move to Trash"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRestoreDocument(doc.id);
+                    }}
+                    className="p-1 rounded bg-neonTeal/10 hover:bg-neonTeal text-neonTeal hover:text-white border border-neonTeal/20 hover:border-neonTeal transition-all cursor-pointer"
+                    title="Restore"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : viewMode === "grid" ? (
         /* Card Grid View */

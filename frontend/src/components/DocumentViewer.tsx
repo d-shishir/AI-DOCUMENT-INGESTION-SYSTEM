@@ -2,11 +2,25 @@ import React, { useEffect, useState } from "react";
 import { X, Copy, Check, FileText, Loader2, Info, BrainCircuit, Code, RefreshCw, Database } from "lucide-react";
 import { MethodHudBadge } from "./MethodHudBadge";
 
+interface ExtractedDocumentJson {
+  indexing_method?: "live" | "mock" | null;
+  extraction_method?: "live" | "mock" | null;
+  document_type?: string;
+  vendor?: string;
+  amount?: string | number;
+  currency?: string;
+  invoice_number?: string;
+  date?: string;
+  title?: string;
+  summary?: string;
+  [key: string]: unknown;
+}
+
 interface DocumentDetail {
   id: string;
   filename: string;
   content: string;
-  extracted_json: Record<string, any> | null;
+  extracted_json: ExtractedDocumentJson | null;
   file_size: number;
   created_at: string;
 }
@@ -51,8 +65,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
         }
         const data = await res.json();
         setDoc(data);
-      } catch (err: any) {
-        setError(err.message || "An error occurred while fetching details.");
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "An error occurred while fetching details.";
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
@@ -75,8 +90,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       const updatedDoc = await res.json();
       setDoc(updatedDoc);
       setActiveTab("json"); // automatically flip to JSON tab on success
-    } catch (err: any) {
-      setError(err.message || "Extraction execution failed.");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Extraction execution failed.";
+      setError(errorMsg);
     } finally {
       setExtracting(false);
     }
@@ -101,8 +117,9 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
       // Refresh the document to get updated extracted_json with indexing_method
       const docRes = await fetch(`${backendUrl}/documents/${documentId}`);
       if (docRes.ok) setDoc(await docRes.json());
-    } catch (err: any) {
-      setError(err.message || "Indexing operation failed.");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Indexing operation failed.";
+      setError(errorMsg);
     } finally {
       setIndexing(false);
     }
