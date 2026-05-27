@@ -3,8 +3,10 @@ import { FileUpload } from "./components/FileUpload";
 import { DocumentList } from "./components/DocumentList";
 import type { DocumentMetadata } from "./components/DocumentList";
 import { DocumentViewer } from "./components/DocumentViewer";
-import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff } from "lucide-react";
+import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff, Users } from "lucide-react";
 import { Dashboard } from "./modules/invoice-automation/Dashboard";
+import { WorkflowDashboard } from "./modules/workflow-engine/WorkflowDashboard";
+import { CrmDashboard } from "./modules/crm-intelligence/CrmDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -49,7 +51,7 @@ interface AIStatus {
   detail: string;
 }
 
-type WorkspaceTab = "catalog" | "search" | "chat" | "finance";
+type WorkspaceTab = "catalog" | "search" | "chat" | "finance" | "workflows" | "crm";
 
 interface SystemMetrics {
   documents_indexed: number;
@@ -463,7 +465,9 @@ function App() {
               { id: "catalog", label: "Library Catalog", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: BookOpen },
               { id: "chat", label: "RAG Chat Assistant", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: MessageSquare },
               { id: "search", label: "Semantic Search", num: "03", activeColor: "border-yellow-500 text-yellow-500 bg-yellow-500/5", icon: Search },
-              { id: "finance", label: "Finance Operations", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Activity }
+              { id: "finance", label: "Finance Operations", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Activity },
+              { id: "workflows", label: "Agent Workflows", num: "05", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
+              { id: "crm", label: "CRM & Sales Intel", num: "06", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Users }
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -854,6 +858,12 @@ function App() {
             )}
             {activeTab === "finance" && (
               <Dashboard backendUrl={BACKEND_URL} />
+            )}
+            {activeTab === "workflows" && (
+              <WorkflowDashboard backendUrl={BACKEND_URL} />
+            )}
+            {activeTab === "crm" && (
+              <CrmDashboard backendUrl={BACKEND_URL} />
             )}
           </div>
         </div>

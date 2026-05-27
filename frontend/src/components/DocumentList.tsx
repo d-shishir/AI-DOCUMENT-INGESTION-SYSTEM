@@ -138,9 +138,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({
                         <div className="w-8 h-8 rounded-lg bg-neonTeal/5 flex items-center justify-center text-neonTeal shrink-0 group-hover:scale-105 transition-transform">
                           <FileText className="w-4 h-4" />
                         </div>
-                        <span className="truncate max-w-[200px] sm:max-w-xs block" title={doc.filename}>
+                        <span className="truncate max-w-[200px] sm:max-w-xs block font-semibold text-gray-200" title={doc.filename}>
                           {doc.filename}
                         </span>
+                        <code className="text-[10px] text-darkMuted font-mono select-all block mt-0.5" title="Double click to copy UUID">
+                          ID: {doc.id}
+                        </code>
                       </div>
                     </td>
                     <td className="py-4 px-6 text-darkMuted hidden sm:table-cell">

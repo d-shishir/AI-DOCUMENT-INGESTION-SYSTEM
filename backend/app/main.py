@@ -24,6 +24,14 @@ from .services.metrics import metrics_tracker
 
 # Import the new invoice/payroll automation router
 from modules.invoice_automation.router import router as invoice_automation_router
+from modules.workflow_engine.router import router as workflow_engine_router
+from modules.crm_intelligence.router import router as crm_router
+from app.database import engine, Base
+import modules.workflow_engine.models  # Ensures models are imported for metadata creation
+import modules.crm_intelligence.models  # Ensures crm models are imported for metadata creation
+
+# Auto create tables if not exists
+Base.metadata.create_all(bind=engine)
 
 # Configure logging
 logging.basicConfig(
@@ -34,8 +42,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Register the new router
+# Register the new routers
 app.include_router(invoice_automation_router, prefix="/api/v1/invoice-automation", tags=["Invoice & Payroll Automation"])
+app.include_router(workflow_engine_router, prefix="/api/v1/workflows", tags=["AI Workflow Engine"])
+app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM & Sales Automation"])
 
 # Setup CORS
 app.add_middleware(

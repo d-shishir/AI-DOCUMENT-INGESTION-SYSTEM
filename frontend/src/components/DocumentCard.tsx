@@ -33,6 +33,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           <h4 className="font-semibold text-gray-200 truncate pr-4 text-sm" title={doc.filename}>
             {doc.filename}
           </h4>
+          <p className="text-[9px] font-mono text-darkMuted bg-darkBg/60 px-1.5 py-0.5 rounded border border-darkBorder/40 select-all w-fit font-semibold" title="Double click to copy Document UUID">
+            ID: {doc.id}
+          </p>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-darkMuted">
             <span className="flex items-center gap-1">
               <HardDrive className="w-3.5 h-3.5" />

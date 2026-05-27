@@ -7,7 +7,6 @@ import {
   ShieldAlert, 
   TrendingUp, 
   Activity, 
-  Clock, 
   RefreshCw, 
   ChevronLeft, 
   ChevronRight, 
@@ -113,7 +112,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ backendUrl }) => {
   const [anomalies, setAnomalies] = useState<AnomalyData[]>([]);
   
   // Loading & Error States
-  const [loadingStats, setLoadingStats] = useState(true);
   const [loadingData, setLoadingData] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,8 +138,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ backendUrl }) => {
       }
     } catch (err) {
       console.error("Error fetching stats:", err);
-    } finally {
-      setLoadingStats(false);
     }
   }, [backendUrl]);
 
