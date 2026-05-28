@@ -8,6 +8,7 @@ import { Dashboard } from "./modules/invoice-automation/Dashboard";
 import { WorkflowDashboard } from "./modules/workflow-engine/WorkflowDashboard";
 import { CrmDashboard } from "./modules/crm-intelligence/CrmDashboard";
 import { WorkerMonitor } from "./modules/background-worker/WorkerMonitor";
+import { AgentDashboard } from "./modules/multi-agent-system/AgentDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -52,7 +53,7 @@ interface AIStatus {
   detail: string;
 }
 
-type WorkspaceTab = "hub" | "assistant" | "automation" | "worker";
+type WorkspaceTab = "hub" | "assistant" | "automation" | "worker" | "agents";
 
 interface SystemMetrics {
   documents_indexed: number;
@@ -307,8 +308,9 @@ function App() {
     { id: "hub", label: "Workspace Hub", num: "00", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
     { id: "assistant", label: "Document Assistant", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: MessageSquare },
     { id: "automation", label: "Business Automation", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sliders },
+    { id: "agents", label: "Multi-Agent System", num: "03", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sparkles },
     ...(isAdvancedMode ? [
-      { id: "worker", label: "Worker Queue", num: "03", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server }
+      { id: "worker", label: "Worker Queue", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server }
     ] : [])
   ];
 
@@ -748,6 +750,26 @@ function App() {
                       <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
+
+                  {/* Multi-Agent Operations */}
+                  <div 
+                    onClick={() => { setActiveTab("agents"); }}
+                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                  >
+                    <div className="space-y-3">
+                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Multi-Agent Swarm</h3>
+                        <p className="text-xs text-darkMuted mt-1">Autonomous multi-agent system coordinating auditing and sales workflows.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
+                      <span>Enter Swarm Control</span>
+                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1173,6 +1195,10 @@ function App() {
                   )}
                 </div>
               </div>
+            )}
+
+            {activeTab === "agents" && (
+              <AgentDashboard backendUrl={BACKEND_URL} />
             )}
 
             {activeTab === "worker" && (

@@ -90,3 +90,23 @@ flowchart TD
 3. **Embeddings Pipeline**: Generates 1536-dimensional vectors for text chunks via OpenAI or a local mock vector fallback.
 4. **Auditing Sync**: Intercepts ingested text to parse invoice or payroll models, run calculations validation, and register active compliance anomalies.
 
+---
+
+## 4. Multi-Agent AI Operations Swarm
+
+The swarm architecture allows specialized autonomous agents to coordinate and resolve complex workflows:
+
+```mermaid
+graph TD
+    A[Task Coordinator] -->|Decomposes goal| B[Execution Pipeline]
+    B -->|Resolves agent capability| C[Delegation Engine]
+    C -->|Invokes| D[Core Agents: Finance, CRM, Research, Workflow]
+    D -->|Publish events| E[Communication Bus]
+    D -->|Read/Write context| F[Shared Memory Manager]
+```
+
+### Components:
+* **Registry & Coordination**: The Task Coordinator maps goal statements to capabilities.
+* **Shared Memory & Context**: Agents communicate asynchronously by writing capability summaries to the database-backed shared memory layer.
+* **Pub/Sub Logging**: All message exchanges are routed through the Communication Bus to persist trace histories for live developer auditing.
+

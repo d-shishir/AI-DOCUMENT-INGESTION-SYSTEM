@@ -27,10 +27,12 @@ from modules.invoice_automation.router import router as invoice_automation_route
 from modules.workflow_engine.router import router as workflow_engine_router
 from modules.crm_intelligence.router import router as crm_router
 from modules.background_worker.router import router as worker_router
+from modules.multi_agent_system.router import router as agents_router
 from app.database import engine, Base
 import modules.workflow_engine.models  # Ensures models are imported for metadata creation
 import modules.crm_intelligence.models  # Ensures crm models are imported for metadata creation
 import modules.background_worker.models  # Ensures worker models are imported for metadata creation
+import modules.multi_agent_system.models  # Ensures multi-agent models are imported for metadata creation
 
 # Auto create tables if not exists
 Base.metadata.create_all(bind=engine)
@@ -80,6 +82,7 @@ app.include_router(invoice_automation_router, prefix="/api/v1/invoice-automation
 app.include_router(workflow_engine_router, prefix="/api/v1/workflows", tags=["AI Workflow Engine"])
 app.include_router(crm_router, prefix="/api/v1/crm", tags=["CRM & Sales Automation"])
 app.include_router(worker_router, prefix="/api/v1/worker", tags=["Background Worker"])
+app.include_router(agents_router, prefix="/api/v1/agents", tags=["Multi-Agent AI System"])
 
 # Setup CORS
 app.add_middleware(
