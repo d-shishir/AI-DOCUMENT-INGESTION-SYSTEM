@@ -80,111 +80,192 @@ def ask_question_rag(db: Session, query: str) -> dict:
     3. Construct strict prompt payload.
     4. Call LLM (OpenAI) or Mock fallback.
     5. Record execution timing and cache performance metrics.
+    6. Record observability traces, steps, and RAG quality metrics.
     """
-    total_start = time.perf_counter()
+    from modules.observability import trace_manager, TraceSession, logger
+    from modules.observability.models import AITrace
+    
     query_str = query.strip()
-    
-    # 1. RAG Cache Lookup
-    chat_cache_key = f"chat:{query_str}"
-    cached_response = cache_store.get(chat_cache_key)
-    if cached_response:
-        logger.info(f"RAG answer cache HIT for query: '{query_str}'")
-        total_time_ms = (time.perf_counter() - total_start) * 1000
-        
-        # Log to global metrics
-        metrics_tracker.record_query(total_time_ms)
-        
-        # Return cached answer with updated total latency
-        response = cached_response.copy()
-        response["metrics"] = cached_response["metrics"].copy()
-        response["metrics"]["total_time_ms"] = round(total_time_ms, 2)
-        response["metrics"]["cache_hit"] = True
-        return response
+    active_trace_id = trace_manager.get_current_trace_id()
 
-    # 2. Optimized Retrieval (Query Rewrite -> Cache/Embeddings -> Vector Search -> Rerank)
-    retrieval_res = optimize_retrieval(db, query_str)
-    rewritten_query = retrieval_res["query_rewritten"]
-    chunks = retrieval_res["chunks"]
-    ret_metrics = retrieval_res["metrics"]
-    
-    if not chunks:
-        answer = "Not found in documents"
+    def _execute_rag_logic():
+        total_start = time.perf_counter()
+        
+        # 1. RAG Cache Lookup
+        chat_cache_key = f"chat:{query_str}"
+        cached_response = cache_store.get(chat_cache_key)
+        if cached_response:
+            logger.info(f"RAG answer cache HIT for query: '{query_str}'", module="rag", db=db)
+            total_time_ms = (time.perf_counter() - total_start) * 1000
+            
+            # Log to global metrics
+            metrics_tracker.record_query(total_time_ms)
+            
+            response = cached_response.copy()
+            response["metrics"] = cached_response["metrics"].copy()
+            response["metrics"]["total_time_ms"] = round(total_time_ms, 2)
+            response["metrics"]["cache_hit"] = True
+            
+            # If tracing, add a step for cache hit
+            t_id = trace_manager.get_current_trace_id()
+            if t_id:
+                trace_manager.add_step(t_id, "rag_cache_hit", "success", int(total_time_ms), {}, db)
+            return response
+
+        # 2. Optimized Retrieval
+        retrieval_res = optimize_retrieval(db, query_str)
+        rewritten_query = retrieval_res["query_rewritten"]
+        chunks = retrieval_res["chunks"]
+        ret_metrics = retrieval_res["metrics"]
+        
+        if not chunks:
+            answer = "Not found in documents"
+            total_time_ms = (time.perf_counter() - total_start) * 1000
+            metrics_tracker.record_query(total_time_ms)
+            
+            response = {
+                "answer": answer,
+                "sources": [],
+                "metrics": {
+                    "rewrite_time_ms": ret_metrics["rewrite_time_ms"],
+                    "embedding_time_ms": ret_metrics["embedding_time_ms"],
+                    "db_time_ms": ret_metrics["db_time_ms"],
+                    "rerank_time_ms": ret_metrics["rerank_time_ms"],
+                    "generation_time_ms": 0.0,
+                    "total_time_ms": round(total_time_ms, 2),
+                    "cache_hit": False
+                },
+                "query_rewritten": rewritten_query
+            }
+            cache_store.set(chat_cache_key, response)
+            
+            # Observability metrics for empty retrieval
+            t_id = trace_manager.get_current_trace_id()
+            if t_id:
+                trace_manager.add_rag_metric(
+                    trace_id=t_id,
+                    query=query_str,
+                    top_k=0,
+                    similarity_scores=[],
+                    context_relevance=0.0,
+                    hallucination_score=0.0,
+                    answer_confidence=0.0,
+                    retrieved_chunks=[],
+                    db=db
+                )
+                trace_manager.add_step(t_id, "rag_rewrite", "success", int(ret_metrics["rewrite_time_ms"]), {}, db)
+                trace_manager.add_step(t_id, "rag_empty_retrieval", "success", int(ret_metrics["db_time_ms"]), {}, db)
+            return response
+
+        # 3. Format context chunks
+        formatted_chunks = [
+            {"filename": c["filename"], "content": c["content"]}
+            for c in chunks
+        ]
+        
+        # Build prompt payload with grounding instructions
+        system_prompt, user_content = build_prompt_payload(query_str, formatted_chunks)
+        
+        # 4. LLM Generation
+        gen_start = time.perf_counter()
+        if settings.OPENAI_API_KEY:
+            try:
+                answer = execute_live_rag(system_prompt, user_content)
+                # Estimate token usage
+                from modules.observability.ai_call_tracker import ai_call_tracker
+                approx_tokens = len(system_prompt + user_content + answer) // 4
+                ai_call_tracker.record_token_usage(approx_tokens, "rag", db)
+            except Exception as e:
+                logger.error(f"Live RAG query failed. Falling back to Mock RAG. Error: {str(e)}", module="rag", db=db)
+                answer = execute_mock_rag(query_str, chunks)
+        else:
+            answer = execute_mock_rag(query_str, chunks)
+        gen_time_ms = (time.perf_counter() - gen_start) * 1000
+        
         total_time_ms = (time.perf_counter() - total_start) * 1000
         metrics_tracker.record_query(total_time_ms)
         
+        # 5. Extract ground sources / citations
+        sources = []
+        if "not found in documents" not in answer.lower():
+            sources = [
+                {
+                    "document_id": c["document_id"],
+                    "chunk_text": c["content"],
+                    "score": c.get("rerank_score", c.get("similarity", 0.0)),
+                    "filename": c["filename"]
+                }
+                for c in chunks
+            ]
+
         response = {
             "answer": answer,
-            "sources": [],
+            "sources": sources,
             "metrics": {
                 "rewrite_time_ms": ret_metrics["rewrite_time_ms"],
                 "embedding_time_ms": ret_metrics["embedding_time_ms"],
                 "db_time_ms": ret_metrics["db_time_ms"],
                 "rerank_time_ms": ret_metrics["rerank_time_ms"],
-                "generation_time_ms": 0.0,
+                "generation_time_ms": round(gen_time_ms, 2),
                 "total_time_ms": round(total_time_ms, 2),
                 "cache_hit": False
             },
             "query_rewritten": rewritten_query
         }
+        
         cache_store.set(chat_cache_key, response)
+
+        # 6. Trace steps and quality metrics
+        t_id = trace_manager.get_current_trace_id()
+        if t_id:
+            try:
+                # Gather similarity scores & details
+                scores = [float(c.get("rerank_score", c.get("similarity", 0.0))) for c in chunks]
+                retrieved_chunks = [
+                    {
+                        "chunk_id": str(c.get("document_id", "")),
+                        "content": c.get("content", ""),
+                        "filename": c.get("filename", ""),
+                        "score": float(c.get("rerank_score", c.get("similarity", 0.0)))
+                    }
+                    for c in chunks
+                ]
+                
+                # Check hallucination signals (e.g. if the answer is "Not found in documents" but chunks were returned)
+                is_not_found = "not found" in answer.lower()
+                hallucination_score = 1.0 if is_not_found and len(chunks) > 0 else 0.0
+                confidence = 0.0 if is_not_found else 0.95
+
+                trace_manager.add_rag_metric(
+                    trace_id=t_id,
+                    query=query_str,
+                    top_k=len(chunks),
+                    similarity_scores=scores,
+                    context_relevance=1.0 if len(chunks) > 0 else 0.0,
+                    hallucination_score=hallucination_score,
+                    answer_confidence=confidence,
+                    retrieved_chunks=retrieved_chunks,
+                    db=db
+                )
+                
+                trace_manager.add_step(t_id, "rag_rewrite", "success", int(ret_metrics["rewrite_time_ms"]), {}, db)
+                trace_manager.add_step(t_id, "rag_embedding", "success", int(ret_metrics["embedding_time_ms"]), {}, db)
+                trace_manager.add_step(t_id, "rag_db_search", "success", int(ret_metrics["db_time_ms"]), {}, db)
+                trace_manager.add_step(t_id, "rag_generation", "success", int(gen_time_ms), {}, db)
+            except Exception as ex:
+                logger.error(f"Failed to record RAG metrics: {str(ex)}", module="rag", db=db)
+
         return response
 
-    # 3. Format context chunks
-    formatted_chunks = [
-        {"filename": c["filename"], "content": c["content"]}
-        for c in chunks
-    ]
-    
-    # Build prompt payload with grounding instructions
-    system_prompt, user_content = build_prompt_payload(query_str, formatted_chunks)
-    
-    # 4. LLM Generation
-    gen_start = time.perf_counter()
-    if settings.OPENAI_API_KEY:
-        try:
-            answer = execute_live_rag(system_prompt, user_content)
-        except Exception as e:
-            logger.error(f"Live RAG query failed. Falling back to Mock RAG. Error: {str(e)}")
-            answer = execute_mock_rag(query_str, chunks)
+    if not active_trace_id:
+        # Standalone RAG invocation: Create a new TraceSession
+        with TraceSession(module="rag", input_data=query_str, db=db) as sess:
+            res = _execute_rag_logic()
+            # Update final output
+            trace = db.query(AITrace).filter(AITrace.trace_id == sess.trace_id).first()
+            if trace:
+                trace.final_output = res.get("answer", "")
+                db.commit()
+            return res
     else:
-        answer = execute_mock_rag(query_str, chunks)
-    gen_time_ms = (time.perf_counter() - gen_start) * 1000
-    
-    total_time_ms = (time.perf_counter() - total_start) * 1000
-    
-    # Update metrics tracker
-    metrics_tracker.record_query(total_time_ms)
-    
-    # 5. Extract ground sources / citations
-    sources = []
-    # If grounding check indicates failure or no results, do not cite sources
-    if "not found in documents" not in answer.lower():
-        sources = [
-            {
-                "document_id": c["document_id"],
-                "chunk_text": c["content"],
-                "score": c.get("rerank_score", c.get("similarity", 0.0)),
-                "filename": c["filename"]
-            }
-            for c in chunks
-        ]
-
-    response = {
-        "answer": answer,
-        "sources": sources,
-        "metrics": {
-            "rewrite_time_ms": ret_metrics["rewrite_time_ms"],
-            "embedding_time_ms": ret_metrics["embedding_time_ms"],
-            "db_time_ms": ret_metrics["db_time_ms"],
-            "rerank_time_ms": ret_metrics["rerank_time_ms"],
-            "generation_time_ms": round(gen_time_ms, 2),
-            "total_time_ms": round(total_time_ms, 2),
-            "cache_hit": False
-        },
-        "query_rewritten": rewritten_query
-    }
-    
-    # Cache RAG answer
-    cache_store.set(chat_cache_key, response)
-    
-    return response
+        return _execute_rag_logic()

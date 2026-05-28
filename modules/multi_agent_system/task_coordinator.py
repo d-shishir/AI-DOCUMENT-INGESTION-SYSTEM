@@ -142,179 +142,211 @@ class TaskCoordinator:
         Main orchestration loop: Decomposes goal, delegates tasks, gathers memory findings,
         runs tools, recovers failures with retries, and synthesizes final response.
         """
-        # 1. Initialize run record
-        run = AgentWorkflowRun(
-            goal=goal,
-            status="running",
-            execution_plan=[],
-            shared_memory={}
-        )
-        db.add(run)
-        db.commit()
-        db.refresh(run)
-        
-        run_id = str(run.id)
-        logger.info(f"[COORDINATOR] Starting workflow run {run_id} for goal: '{goal}'")
+        from modules.observability import TraceSession, trace_manager
+        from modules.observability.models import AITrace
 
-        communication_bus.send_message(
-            db=db,
-            workflow_run_id=run_id,
-            sender="system",
-            recipient="coordinator_agent",
-            message_type="system_broadcast",
-            content=f"Received goal request: '{goal}'. Initializing task decomposition."
-        )
-
-        try:
-            # 2. Decompose Goal
-            plan = self.decompose_goal(goal, context)
-            run.execution_plan = plan
-            db.commit()
+        with TraceSession(module="agent", input_data=goal, db=db) as sess:
+            t_id = sess.trace_id
             
+            # 1. Initialize run record
+            run = AgentWorkflowRun(
+                goal=goal,
+                status="running",
+                execution_plan=[],
+                shared_memory={"trace_id": str(t_id)}
+            )
+            db.add(run)
+            db.commit()
+            db.refresh(run)
+            
+            run_id = str(run.id)
+            logger.info(f"[COORDINATOR] Starting workflow run {run_id} for goal: '{goal}'")
+
             communication_bus.send_message(
                 db=db,
                 workflow_run_id=run_id,
-                sender="coordinator_agent",
-                recipient="system_bus",
+                sender="system",
+                recipient="coordinator_agent",
                 message_type="system_broadcast",
-                content=f"Decomposed goal into {len(plan)} subtasks.",
-                metadata={"plan": plan}
+                content=f"Received goal request: '{goal}'. Initializing task decomposition."
             )
 
-            # 3. Execute Subtasks
-            step_summaries = []
-            for i, step in enumerate(plan):
-                task_desc = step["task"]
-                capability = step["capability"]
+            try:
+                # 2. Decompose Goal
+                plan = self.decompose_goal(goal, context)
+                run.execution_plan = plan
+                db.commit()
                 
-                # Match agent to capability
-                agent_key = delegation_engine.delegate_task(capability)
-                
-                # Run Agent (with failure recovery/retry)
-                max_retries = 2
-                retry_count = 0
-                step_success = False
-                agent_res = None
-                
-                while retry_count <= max_retries and not step_success:
-                    try:
-                        agent_res = agent_manager.run_agent(
-                            agent_key=agent_key,
-                            task_description=task_desc,
-                            context=context,
-                            db=db,
-                            workflow_run_id=run_id
-                        )
-                        step_success = True
-                    except Exception as e:
-                        retry_count += 1
-                        logger.error(f"Agent {agent_key} failed task. Retry {retry_count}/{max_retries}: {str(e)}")
+                communication_bus.send_message(
+                    db=db,
+                    workflow_run_id=run_id,
+                    sender="coordinator_agent",
+                    recipient="system_bus",
+                    message_type="system_broadcast",
+                    content=f"Decomposed goal into {len(plan)} subtasks.",
+                    metadata={"plan": plan}
+                )
+
+                # 3. Execute Subtasks
+                step_summaries = []
+                for i, step in enumerate(plan):
+                    task_desc = step["task"]
+                    capability = step["capability"]
+                    
+                    # Match agent to capability
+                    agent_key = delegation_engine.delegate_task(capability)
+                    
+                    # Run Agent (with failure recovery/retry)
+                    max_retries = 2
+                    retry_count = 0
+                    step_success = False
+                    agent_res = None
+                    
+                    while retry_count <= max_retries and not step_success:
+                        try:
+                            # Time the agent run
+                            agent_start = time.perf_counter()
+                            agent_res = agent_manager.run_agent(
+                                agent_key=agent_key,
+                                task_description=task_desc,
+                                context=context,
+                                db=db,
+                                workflow_run_id=run_id
+                            )
+                            agent_latency = int((time.perf_counter() - agent_start) * 1000)
+                            trace_manager.add_step(
+                                trace_id=t_id,
+                                step_name=f"agent_run:{agent_key}",
+                                status="success",
+                                latency_ms=agent_latency,
+                                metadata={"capability": capability, "task": task_desc},
+                                db=db
+                            )
+                            step_success = True
+                        except Exception as e:
+                            retry_count += 1
+                            agent_latency = int((time.perf_counter() - agent_start) * 1000)
+                            trace_manager.add_step(
+                                trace_id=t_id,
+                                step_name=f"agent_run:{agent_key}",
+                                status="failed",
+                                latency_ms=agent_latency,
+                                metadata={"capability": capability, "task": task_desc, "error": str(e)},
+                                db=db
+                            )
+                            logger.error(f"Agent {agent_key} failed task. Retry {retry_count}/{max_retries}: {str(e)}")
+                            communication_bus.send_message(
+                                db=db,
+                                workflow_run_id=run_id,
+                                sender="system",
+                                recipient="coordinator_agent",
+                                message_type="system_broadcast",
+                                content=f"Agent {agent_key} failed task. Retrying step ({retry_count}/{max_retries})."
+                            )
+                    
+                    if not step_success:
+                        # Fallback delegation to Coordinator itself
+                        logger.warning(f"Agent {agent_key} failed completely. Falling back task to coordinator.")
                         communication_bus.send_message(
                             db=db,
                             workflow_run_id=run_id,
                             sender="system",
                             recipient="coordinator_agent",
                             message_type="system_broadcast",
-                            content=f"Agent {agent_key} failed task. Retrying step ({retry_count}/{max_retries})."
+                            content=f"Task '{task_desc}' failed completely on {agent_key}. Falling back to coordinator."
                         )
+                        agent_res = {
+                            "status": "success",
+                            "summary": f"[Fallback] Coordinator handled task: {task_desc}"
+                        }
+
+                    step_summaries.append(agent_res.get("summary", ""))
+                    # Throttle execution slightly for visual tracing
+                    time.sleep(0.5)
+
+                # 4. Synthesize Final Report
+                final_report = ""
+                combined_summary = "\n\n".join([f"- {s}" for s in step_summaries])
                 
-                if not step_success:
-                    # Fallback delegation to Coordinator itself
-                    logger.warning(f"Agent {agent_key} failed completely. Falling back task to coordinator.")
-                    communication_bus.send_message(
-                        db=db,
-                        workflow_run_id=run_id,
-                        sender="system",
-                        recipient="coordinator_agent",
-                        message_type="system_broadcast",
-                        content=f"Task '{task_desc}' failed completely on {agent_key}. Falling back to coordinator."
-                    )
-                    agent_res = {
-                        "status": "success",
-                        "summary": f"[Fallback] Coordinator handled task: {task_desc}"
-                    }
+                if settings.OPENAI_API_KEY:
+                    try:
+                        client = OpenAI(
+                            api_key=settings.OPENAI_API_KEY,
+                            base_url=settings.OPENAI_API_BASE
+                        )
+                        prompt = (
+                            "You are the Coordinator Agent of Syntra OS.\n"
+                            f"Goal: {goal}\n"
+                            f"Specialized Agent Findings:\n{combined_summary}\n\n"
+                            "Draft a professional, comprehensive executive report summarizing the "
+                            "operational status, findings, vector document sources, and workflow "
+                            "confirmations. Provide actionable steps."
+                        )
+                        response = client.chat.completions.create(
+                            model=settings.OPENAI_MODEL,
+                            messages=[
+                                {"role": "system", "content": "You are a professional enterprise coordinator."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            temperature=0.0
+                        )
+                        final_report = response.choices[0].message.content.strip()
+                    except Exception as e:
+                        logger.warning(f"Final synthesis failed: {str(e)}")
+                        final_report = f"Syntra OS Execution Report\n\nObjective: {goal}\n\nCompleted steps:\n{combined_summary}"
+                else:
+                    final_report = f"### Syntra OS Multi-Agent Audit Report\n\n**Goal**: {goal}\n\n**Findings Timeline**:\n{combined_summary}\n\n**Verification**: All specialized agents returned clean signals. Task execution complete."
 
-                step_summaries.append(agent_res.get("summary", ""))
-                # Throttle execution slightly for visual tracing
-                time.sleep(0.5)
+                # Update run completion status
+                run.status = "success"
+                run.completed_at = func.now()
+                memory_manager.update_short_term_memory(db, run_id, "final_report", final_report)
+                db.commit()
 
-            # 4. Synthesize Final Report
-            final_report = ""
-            combined_summary = "\n\n".join([f"- {s}" for s in step_summaries])
-            
-            if settings.OPENAI_API_KEY:
-                try:
-                    client = OpenAI(
-                        api_key=settings.OPENAI_API_KEY,
-                        base_url=settings.OPENAI_API_BASE
-                    )
-                    prompt = (
-                        "You are the Coordinator Agent of Syntra OS.\n"
-                        f"Goal: {goal}\n"
-                        f"Specialized Agent Findings:\n{combined_summary}\n\n"
-                        "Draft a professional, comprehensive executive report summarizing the "
-                        "operational status, findings, vector document sources, and workflow "
-                        "confirmations. Provide actionable steps."
-                    )
-                    response = client.chat.completions.create(
-                        model=settings.OPENAI_MODEL,
-                        messages=[
-                            {"role": "system", "content": "You are a professional enterprise coordinator."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.0
-                    )
-                    final_report = response.choices[0].message.content.strip()
-                except Exception as e:
-                    logger.warning(f"Final synthesis failed: {str(e)}")
-                    final_report = f"Syntra OS Execution Report\n\nObjective: {goal}\n\nCompleted steps:\n{combined_summary}"
-            else:
-                final_report = f"### Syntra OS Multi-Agent Audit Report\n\n**Goal**: {goal}\n\n**Findings Timeline**:\n{combined_summary}\n\n**Verification**: All specialized agents returned clean signals. Task execution complete."
+                communication_bus.send_message(
+                    db=db,
+                    workflow_run_id=run_id,
+                    sender="coordinator_agent",
+                    recipient="user",
+                    message_type="system_broadcast",
+                    content="Aggregated execution complete. Dispatched final executive findings report.",
+                    metadata={"final_report": final_report}
+                )
 
-            # Update run completion status
-            run.status = "success"
-            run.completed_at = func.now()
-            memory_manager.update_short_term_memory(db, run_id, "final_report", final_report)
-            db.commit()
+                # Explicitly record final trace output
+                trace = db.query(AITrace).filter(AITrace.trace_id == t_id).first()
+                if trace:
+                    trace.final_output = final_report
+                    db.commit()
 
-            communication_bus.send_message(
-                db=db,
-                workflow_run_id=run_id,
-                sender="coordinator_agent",
-                recipient="user",
-                message_type="system_broadcast",
-                content="Aggregated execution complete. Dispatched final executive findings report.",
-                metadata={"final_report": final_report}
-            )
+                return {
+                    "status": "success",
+                    "run_id": run_id,
+                    "goal": goal,
+                    "plan": plan,
+                    "final_report": final_report
+                }
 
-            return {
-                "status": "success",
-                "run_id": run_id,
-                "goal": goal,
-                "plan": plan,
-                "final_report": final_report
-            }
-
-        except Exception as e:
-            logger.exception("Task coordinator execution loop crashed")
-            run.status = "failed"
-            run.error_message = str(e)
-            run.completed_at = func.now()
-            db.commit()
-            
-            communication_bus.send_message(
-                db=db,
-                workflow_run_id=run_id,
-                sender="system",
-                recipient="user",
-                message_type="system_broadcast",
-                content=f"Workflow run failed with exception error: {str(e)}"
-            )
-            return {
-                "status": "failed",
-                "run_id": run_id,
-                "error": str(e)
-            }
+            except Exception as e:
+                logger.exception("Task coordinator execution loop crashed")
+                run.status = "failed"
+                run.error_message = str(e)
+                run.completed_at = func.now()
+                db.commit()
+                
+                communication_bus.send_message(
+                    db=db,
+                    workflow_run_id=run_id,
+                    sender="system",
+                    recipient="user",
+                    message_type="system_broadcast",
+                    content=f"Workflow run failed with exception error: {str(e)}"
+                )
+                return {
+                    "status": "failed",
+                    "run_id": run_id,
+                    "error": str(e)
+                }
 
 # Global coordinator instance
 task_coordinator = TaskCoordinator()

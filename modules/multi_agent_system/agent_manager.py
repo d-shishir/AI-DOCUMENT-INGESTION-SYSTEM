@@ -40,11 +40,18 @@ class AgentManager:
         logger.info(f"[AGENT] Running '{agent_key}' for task: '{task_description}'")
 
         # Select tool matching capability
+        import time
+        from modules.observability import trace_manager
+        
+        t_id = trace_manager.get_current_trace_id()
+        tool_start = time.perf_counter()
+        tool_status = "success"
         result = None
         tool_executed = None
         
-        # 1. RAG Research Tool matching
-        if agent_key == "research_agent" or "rag_search" in agent.get("capabilities", []):
+        try:
+            # 1. RAG Research Tool matching
+            if agent_key == "research_agent" or "rag_search" in agent.get("capabilities", []):
             query = context.get("query") or task_description
             limit = context.get("limit", 3)
             communication_bus.send_message(
@@ -165,6 +172,48 @@ class AgentManager:
                 body = context.get("body", "Notification sent from automated agent.")
                 result = tool_registry.execute_tool("send_email", db, context, recipient=recipient, subject=subject, body=body)
                 tool_executed = "send_email"
+
+        except Exception as e:
+            tool_status = "failed"
+            tool_latency = int((time.perf_counter() - tool_start) * 1000)
+            if t_id and tool_executed:
+                try:
+                    trace_manager.add_tool_call(
+                        trace_id=t_id,
+                        tool_name=tool_executed,
+                        input_params=context,
+                        output_result={"error": str(e)},
+                        latency_ms=tool_latency,
+                        status="failed",
+                        db=db
+                    )
+                except Exception:
+                    pass
+            raise e
+
+        # At the end of successful tool call:
+        tool_latency = int((time.perf_counter() - tool_start) * 1000)
+        if t_id and tool_executed:
+            try:
+                trace_manager.add_tool_call(
+                    trace_id=t_id,
+                    tool_name=tool_executed,
+                    input_params=context,
+                    output_result=result if isinstance(result, dict) else {"output": str(result)},
+                    latency_ms=tool_latency,
+                    status=tool_status,
+                    db=db
+                )
+                trace_manager.add_step(
+                    trace_id=t_id,
+                    step_name=f"agent_tool:{tool_executed}",
+                    status=tool_status,
+                    latency_ms=tool_latency,
+                    metadata={"agent": agent_key},
+                    db=db
+                )
+            except Exception:
+                pass
 
         # 5. Fallback LLM / Mock aggregation
         if not result:

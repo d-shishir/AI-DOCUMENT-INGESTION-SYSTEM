@@ -9,6 +9,7 @@ import { WorkflowDashboard } from "./modules/workflow-engine/WorkflowDashboard";
 import { CrmDashboard } from "./modules/crm-intelligence/CrmDashboard";
 import { WorkerMonitor } from "./modules/background-worker/WorkerMonitor";
 import { AgentDashboard } from "./modules/multi-agent-system/AgentDashboard";
+import { ObservabilityDashboard } from "./modules/observability/ObservabilityDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -53,7 +54,7 @@ interface AIStatus {
   detail: string;
 }
 
-type WorkspaceTab = "hub" | "assistant" | "automation" | "worker" | "agents";
+type WorkspaceTab = "hub" | "assistant" | "automation" | "worker" | "agents" | "observability";
 
 interface SystemMetrics {
   documents_indexed: number;
@@ -310,7 +311,8 @@ function App() {
     { id: "automation", label: "Business Automation", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sliders },
     { id: "agents", label: "Multi-Agent System", num: "03", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sparkles },
     ...(isAdvancedMode ? [
-      { id: "worker", label: "Worker Queue", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server }
+      { id: "worker", label: "Worker Queue", num: "04", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server },
+      { id: "observability", label: "Observability", num: "05", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Activity }
     ] : [])
   ];
 
@@ -1203,6 +1205,10 @@ function App() {
 
             {activeTab === "worker" && (
               <WorkerMonitor />
+            )}
+
+            {activeTab === "observability" && (
+              <ObservabilityDashboard backendUrl={BACKEND_URL} />
             )}
           </div>
         </div>
