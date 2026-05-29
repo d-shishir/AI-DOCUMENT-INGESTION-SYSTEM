@@ -199,4 +199,29 @@ graph TD
 * **FastAPI Security Guards**: Decorates api routes with dependency-injected filters that authorize operations and raise structured errors.
 * **Security Audit Logger**: Traces all authentication occurrences to database logs and routes security violations to the Event Bus, triggering immediate administrator alerts.
 
+---
+
+## 8. Unified Operations Dashboard (Control Center)
+
+Syntra OS integrates a centralized corporate command console pulling analytics, alerts, approvals, and live telemetry across all modules.
+
+```mermaid
+graph TD
+    A[React Control Center] -->|HTTP / SSE| B[Dashboard Router]
+    B -->|Query / Aggregate| C[Metrics Aggregator]
+    B -->|SSE Stream| D[Activity Feed]
+    B -->|Fetch Inbox| E[Alert Collector]
+    B -->|Generate summary| F[AI Summary Compiler]
+    C -->|Reads DB| G[(Database: Workflows, Agents, CRM, Finance, Reviews, Errors, Events)]
+    D -->|SSE Listeners| H[Event Bus dispatcher hook]
+```
+
+### Components
+* **Metrics Aggregator Layer**: Calculates status widget values (active workflows, running agents, approvals, and failed jobs) and calculates a real-time system health score.
+* **Alert Collector**: Unifies approval review cards and notification flags into a consolidated operations inbox.
+* **Activity Feed Engine**: Merges historical logs and streams published events to active SSE client queues.
+* **AI Summary Compiler**: Generates natural language executive summaries based on system telemetry.
+* **Quick Action Dispatcher**: Executes commands (approvals, custom RAG searches, workflow executions) matching RBAC boundaries.
+
+
 

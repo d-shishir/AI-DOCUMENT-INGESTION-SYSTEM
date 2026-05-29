@@ -10,6 +10,21 @@ def dispatch_event(db: Session, event: EventRecord):
     Finds all subscriber callbacks registered for this event type and executes them.
     Each subscriber runs in a safe execution block.
     """
+    try:
+        from modules.dashboard_aggregator.activity_feed import feed_manager
+        payload = event.payload or {}
+        msg = f"System event '{event.event_type}' published."
+        if isinstance(payload, dict):
+            msg = payload.get("message") or payload.get("description") or payload.get("title") or msg
+        feed_manager.broadcast({
+            "event_type": event.event_type,
+            "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+            "source": event.source_module,
+            "message": msg,
+            "severity": event.priority if event.priority in ["low", "medium", "high", "critical"] else "medium"
+        })
+    except Exception as e:
+        logger.warning(f"Event Dispatcher: Failed to broadcast event: {str(e)}")
     subscribers = event_registry.get_subscribers(event.event_type)
     if not subscribers:
         logger.info(f"Event Dispatcher: no subscribers registered for event '{event.event_type}'")

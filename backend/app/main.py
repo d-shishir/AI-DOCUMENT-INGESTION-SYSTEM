@@ -120,6 +120,9 @@ app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["
 from modules.auth_system.router import router as auth_router
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Enterprise Authentication & RBAC"])
 
+from modules.dashboard_aggregator.router import router as dashboard_router
+app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["Unified Dashboard"])
+
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,

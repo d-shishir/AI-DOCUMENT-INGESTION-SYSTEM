@@ -14,6 +14,7 @@ import { ReviewQueueDashboard } from "./modules/human-review/ReviewQueueDashboar
 import { EventDashboard } from "./modules/event-monitoring/EventDashboard";
 import { NotificationDashboard } from "./modules/notification-center/NotificationDashboard";
 import { AuthDashboard } from "./modules/auth-access/AuthDashboard";
+import { UnifiedDashboard } from "./modules/unified-dashboard/UnifiedDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -310,7 +311,7 @@ function App() {
 
   // Define tab navigation groups based on mode
   const tabsList = [
-    { id: "hub", label: "Workspace Hub", num: "00", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
+    { id: "hub", label: "Control Center", num: "00", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
     { id: "assistant", label: "Document Assistant", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: MessageSquare },
     { id: "automation", label: "Business Automation", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sliders },
     { id: "agents", label: "Multi-Agent System", num: "03", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sparkles },
@@ -620,168 +621,7 @@ function App() {
           <div className="flex-1">
 
             {activeTab === "hub" && (
-              <div className="space-y-8 animate-fadeIn">
-                {/* Welcome Hero Panel */}
-                <div className="p-8 rounded-2xl bg-gradient-to-r from-neonIndigo/10 to-neonTeal/5 border border-darkBorder relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-neonIndigo/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
-                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-neonTeal/5 rounded-full blur-3xl -ml-20 -mb-20"></div>
-                  
-                  <div className="relative z-10 max-w-2xl space-y-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-neonIndigo bg-neonIndigo/10 px-2.5 py-1 rounded-full border border-neonIndigo/20">
-                      Syntra OS Operating System
-                    </span>
-                    <h2 className="text-3xl font-display font-extrabold text-white tracking-tight">
-                      Welcome to your Intelligent Document Workspace
-                    </h2>
-                    <p className="text-sm text-darkMuted leading-relaxed">
-                      Syntra OS automates document operations using high-performance AI engines. Ingest PDFs, search semantically, ask questions directly to your archive, or deploy extraction agents.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Hub Options Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {/* Library Catalog */}
-                  <div 
-                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("chat"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonTeal/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonTeal/10 flex items-center justify-center text-neonTeal border border-neonTeal/20 group-hover:bg-neonTeal/20 transition-all">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Library Catalog</h3>
-                        <p className="text-xs text-darkMuted mt-1">Browse, upload, and manage your processed document library.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonTeal font-medium pt-2">
-                      <span>{documents.length} Ingested Documents</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* RAG Chat Assistant */}
-                  <div 
-                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("chat"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
-                        <MessageSquare className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Chat Assistant</h3>
-                        <p className="text-xs text-darkMuted mt-1">Ask questions and retrieve insights from all documents instantly.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
-                      <span>Talk with your archive</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* Semantic Search */}
-                  <div 
-                    onClick={() => { setActiveTab("assistant"); setAssistantSubTab("search"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-yellow-500/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center text-yellow-500 border border-yellow-500/20 group-hover:bg-yellow-500/20 transition-all">
-                        <Search className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Semantic Search</h3>
-                        <p className="text-xs text-darkMuted mt-1">Search text segments using concept matching rather than simple keywords.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-yellow-500 font-medium pt-2">
-                      <span>Concept-based lookup</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* Finance Operations */}
-                  <div 
-                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("finance"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonTeal/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonTeal/10 flex items-center justify-center text-neonTeal border border-neonTeal/20 group-hover:bg-neonTeal/20 transition-all">
-                        <Activity className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Finance Automation</h3>
-                        <p className="text-xs text-darkMuted mt-1">Audit payables, verify line items, and extract transaction stats.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonTeal font-medium pt-2">
-                      <span>Invoice & Expense Audit</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* Agent Workflows */}
-                  <div 
-                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("workflows"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
-                        <Cpu className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Agent Workflows</h3>
-                        <p className="text-xs text-darkMuted mt-1">Orchestrate automated steps like review, verification, and notifications.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
-                      <span>AI Operation Flows</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* CRM & Sales Intelligence */}
-                  <div 
-                    onClick={() => { setActiveTab("automation"); setAutomationSubTab("crm"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
-                        <Users className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">CRM & Sales Intel</h3>
-                        <p className="text-xs text-darkMuted mt-1">Extract contact info, lead interest, and client priorities automatically.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
-                      <span>Lead Extraction Hub</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-
-                  {/* Multi-Agent Operations */}
-                  <div 
-                    onClick={() => { setActiveTab("agents"); }}
-                    className="p-6 rounded-2xl border border-darkBorder bg-darkPanel/20 hover:border-neonIndigo/40 hover:bg-darkPanel/30 cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[180px] shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                  >
-                    <div className="space-y-3">
-                      <div className="w-10 h-10 rounded-xl bg-neonIndigo/10 flex items-center justify-center text-neonIndigo border border-neonIndigo/20 group-hover:bg-neonIndigo/20 transition-all">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-200 group-hover:text-white transition-colors">Multi-Agent Swarm</h3>
-                        <p className="text-xs text-darkMuted mt-1">Autonomous multi-agent system coordinating auditing and sales workflows.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-neonIndigo font-medium pt-2">
-                      <span>Enter Swarm Control</span>
-                      <ArrowUpRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <UnifiedDashboard />
             )}
 
             {activeTab === "assistant" && (
