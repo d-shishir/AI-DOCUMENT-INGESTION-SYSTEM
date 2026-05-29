@@ -136,6 +136,18 @@ class WorkflowExecutor:
         # 2. Finalize the run log
         try:
             completed_run = WorkflowLogger.complete_run(db, str(run.id), current_status, context, run_error)
+            if current_status == "failed":
+                try:
+                    from modules.event_system.event_bus import publish_event
+                    publish_event(
+                        db=db,
+                        event_type="workflow_failed",
+                        source_module="workflow_engine",
+                        payload={"run_id": str(run.id), "workflow_name": workflow_name, "error": run_error},
+                        priority="high"
+                    )
+                except Exception as ev_err:
+                    logger.warning(f"Failed to publish workflow_failed event: {str(ev_err)}")
             return completed_run
         except Exception as final_err:
             logger.error(f"Failed to complete workflow run logging: {str(final_err)}")

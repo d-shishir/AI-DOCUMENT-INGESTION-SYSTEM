@@ -3,7 +3,7 @@ import { FileUpload } from "./components/FileUpload";
 import { DocumentList } from "./components/DocumentList";
 import type { DocumentMetadata } from "./components/DocumentList";
 import { DocumentViewer } from "./components/DocumentViewer";
-import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, CheckCircle2, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff, Users, ShieldAlert } from "lucide-react";
+import { Cpu, Server, Database, Sparkles, Search, Loader2, ArrowUpRight, CheckCircle2, HelpCircle, MessageSquare, BookOpen, Send, ChevronDown, ChevronUp, Clock, Activity, Zap, Sliders, Eye, EyeOff, Users, ShieldAlert, Bell, Lock } from "lucide-react";
 import { Dashboard } from "./modules/invoice-automation/Dashboard";
 import { WorkflowDashboard } from "./modules/workflow-engine/WorkflowDashboard";
 import { CrmDashboard } from "./modules/crm-intelligence/CrmDashboard";
@@ -11,6 +11,9 @@ import { WorkerMonitor } from "./modules/background-worker/WorkerMonitor";
 import { AgentDashboard } from "./modules/multi-agent-system/AgentDashboard";
 import { ObservabilityDashboard } from "./modules/observability/ObservabilityDashboard";
 import { ReviewQueueDashboard } from "./modules/human-review/ReviewQueueDashboard";
+import { EventDashboard } from "./modules/event-monitoring/EventDashboard";
+import { NotificationDashboard } from "./modules/notification-center/NotificationDashboard";
+import { AuthDashboard } from "./modules/auth-access/AuthDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -55,7 +58,7 @@ interface AIStatus {
   detail: string;
 }
 
-type WorkspaceTab = "hub" | "assistant" | "automation" | "worker" | "agents" | "observability" | "review";
+type WorkspaceTab = "hub" | "assistant" | "automation" | "worker" | "agents" | "observability" | "review" | "events" | "notifications" | "auth";
 
 interface SystemMetrics {
   documents_indexed: number;
@@ -314,7 +317,10 @@ function App() {
     { id: "review", label: "Human Review", num: "04", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: ShieldAlert },
     ...(isAdvancedMode ? [
       { id: "worker", label: "Worker Queue", num: "05", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Server },
-      { id: "observability", label: "Observability", num: "06", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Activity }
+      { id: "observability", label: "Observability", num: "06", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Activity },
+      { id: "events", label: "Event Bus", num: "07", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Zap },
+      { id: "notifications", label: "Alert Hub", num: "08", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Bell },
+      { id: "auth", label: "Security IAM", num: "09", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: Lock }
     ] : [])
   ];
 
@@ -1215,6 +1221,18 @@ function App() {
 
             {activeTab === "review" && (
               <ReviewQueueDashboard backendUrl={BACKEND_URL} />
+            )}
+
+            {activeTab === "events" && (
+              <EventDashboard />
+            )}
+
+            {activeTab === "notifications" && (
+              <NotificationDashboard />
+            )}
+
+            {activeTab === "auth" && (
+              <AuthDashboard />
             )}
           </div>
         </div>

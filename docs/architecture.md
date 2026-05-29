@@ -110,3 +110,93 @@ graph TD
 * **Shared Memory & Context**: Agents communicate asynchronously by writing capability summaries to the database-backed shared memory layer.
 * **Pub/Sub Logging**: All message exchanges are routed through the Communication Bus to persist trace histories for live developer auditing.
 
+---
+
+## 5. Real-Time Event Bus & Asynchronous Job Processing
+
+Syntra OS integrates a distributed-ready, event-driven infrastructure enabling decoupled module communication and resilient asynchronous background task execution.
+
+```mermaid
+graph TD
+    A[Publishers: Upload, Agents, Workflows] -->|publish_event| B[Event Bus]
+    B -->|Persists EventRecord| C[(PostgreSQL)]
+    B -->|Triggers| D[Event Dispatcher]
+    D -->|Executes Callback| E[Event Registry]
+    E -->|Synchronous Handler| F[Immediate Reaction]
+    E -->|Asynchronous Handler| G[Enqueue EventJob]
+    G -->|Priority Ordering| H[(Job Queue)]
+    H -->|Pulls Task| I[Async Workers Daemon]
+    I -->|Executes Task| J[Heavy Workload: AI, Extraction]
+    I -->|Error / Retry| K[Retry Scheduler]
+    K -->|Exponential Backoff| H
+    K -->|Exceeds max_retries| L[Dead Letter Queue DLQ]
+```
+
+### Components
+* **Central Event Bus**: Collects events, correlates them with trace contexts, publishes telemetry metrics, and persists them database-wide.
+* **Registry & Dispatcher**: Manages module event subscriptions and coordinates reactions.
+* **Priority Job Queue**: Supports atomic task reservation (avoiding worker race conditions) and processes critical operations before standard tasks.
+* **Retry Engine & DLQ**: Ensures robustness by retrying failed tasks with exponential backoff delays, and moves terminally failed processes to a quarantined review container.
+* **SSE Telemetry Streaming**: Live updates the frontend operations dashboard using Server-Sent Events (SSE).
+
+---
+
+## 6. Enterprise Notification & Communication Hub
+
+Syntra OS incorporates an intelligent communication layer that handles multi-channel alerts routing, user preferences matching, incident escalations, and AI summarizations.
+
+```mermaid
+graph TD
+    A[Event Sources / Swarm Agents] -->|publish_event| B[Event Bus]
+    B -->|triggers| C[Notification Manager]
+    C -->|checks| D[Preference Manager]
+    C -->|templates| E[AI Template Engine]
+    C -->|resolves| F[Channel Router]
+    F -->|sends| G[Delivery Engine]
+    G -->|In-App / Email / Slack / SMS| H[Recipient Targets]
+    G -->|pushes| I[Realtime Gateway]
+    I -->|SSE Stream| J[Frontend Notification Center]
+    
+    H -->|Unresolved Alert| K[Escalation Notifier]
+    K -->|Escalate target & critical level| G
+```
+
+### Components
+* **Notification Manager**: Orchestrator that binds events, triggers templating, computes channels, executes deliveries, and manages state updates.
+* **Preference Manager**: Evaluates routing filters, channel settings, and module subscriptions for recipients.
+* **AI Template Engine**: Integrates with LLMs to summarize raw system JSON payloads into beginner-friendly sentences.
+* **Channel Router & Delivery Engine**: Route notifications across multiple simulated channels (In-app, SMTP Email, Slack webhooks, Twilio SMS) and log confirmation latency traces.
+* **Escalation Notifier**: Raises unresolved notifications to `critical` priority and re-routes to secondary management stakeholders.
+* **Realtime Gateway**: Implements SSE streams `/api/v1/notifications/stream` for live updates on the client UI.
+
+---
+
+## 7. Enterprise Authentication & Role-Based Access Control (RBAC) System
+
+Syntra OS enforces security compliance and operational boundaries via a custom Identity & Access Management (IAM) engine.
+
+```mermaid
+graph TD
+    A[Client Request + JWT] --> B[API Router]
+    B -->|FastAPI Dependency| C[get_current_user]
+    C -->|JWT Verify| D[Verify JWT Token]
+    D -->|Invalid / Expired| E[401 Unauthorized]
+    D -->|Valid| F[Fetch User + Session]
+    F --> G[PermissionGuard]
+    G -->|Checks Role Capabilities| H[Role Manager]
+    G -->|Enforces Department Locks| I[Permission Engine]
+    H & I -->|Matches Policy| J[Route Access Granted]
+    H & I -->|Violation| K[Raise 403 Forbidden]
+    K -->|Security Logger| L[Security Audit Log]
+    L -->|Event Bus| M[Publish security_alert]
+```
+
+### Components
+* **Cryptographic Engine**: Secures user credential storage using standard PBKDF2 hashing, and signs access tokens using an in-house HS256 JWT builder.
+* **Session Lifecycle Manager**: Manages session state persistence, tracks token expiration bounds, and implements global token invalidations.
+* **Role Capability Engine**: Houses mapping matrices associating roles (e.g. `admin`, `finance_manager`, `sales_rep`, `compliance_officer`) with granular permissions (e.g. `invoices:read`, `crm_records:write`, `anomaly_overrides:execute`).
+* **Boundary Permission Engine**: Enforces strict departmental partitions (e.g., `sales`, `finance`, `compliance`) preventing cross-department access except for global roles.
+* **FastAPI Security Guards**: Decorates api routes with dependency-injected filters that authorize operations and raise structured errors.
+* **Security Audit Logger**: Traces all authentication occurrences to database logs and routes security violations to the Event Bus, triggering immediate administrator alerts.
+
+

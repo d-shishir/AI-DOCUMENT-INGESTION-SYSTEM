@@ -35,6 +35,26 @@ class CommunicationBus:
             f"[COMM BUS] Run: {workflow_run_id} | {sender} -> {recipient} "
             f"({message_type}): {content[:80]}..."
         )
+        
+        # Publish event on the Central Event Bus
+        try:
+            from modules.event_system.event_bus import publish_event
+            publish_event(
+                db=db,
+                event_type="agent_message_sent",
+                source_module="multi_agent_system",
+                payload={
+                    "workflow_run_id": workflow_run_id,
+                    "sender": sender,
+                    "recipient": recipient,
+                    "message_type": message_type,
+                    "content": content
+                },
+                priority="medium"
+            )
+        except Exception as e:
+            logger.warning(f"Could not publish agent_message_sent event: {str(e)}")
+
         return log_entry
 
     def get_logs_for_run(self, db: Session, workflow_run_id: str):

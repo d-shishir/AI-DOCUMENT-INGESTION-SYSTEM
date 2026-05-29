@@ -36,6 +36,9 @@ import modules.background_worker.models  # Ensures worker models are imported fo
 import modules.multi_agent_system.models  # Ensures multi-agent models are imported for metadata creation
 import modules.observability.models  # Ensures observability models are imported for metadata creation
 import modules.human_review_system.models  # Ensures human review models are imported for metadata creation
+import modules.event_system.models  # Ensures event system models are imported for metadata creation
+import modules.notification_hub.models  # Ensures notification hub models are imported for metadata creation
+import modules.auth_system.models  # Ensures auth system models are imported for metadata creation
 from modules.human_review_system.router import router as reviews_router
 
 # Auto create tables if not exists
@@ -79,6 +82,24 @@ register_handler("document_ingestion", integrate_document_pipeline_handler)
 # Start background worker daemon
 start_worker()
 
+# Start Event Bus and Async Job system background workers
+from modules.event_system.event_subscribers import initialize_subscribers
+from modules.event_system.job_handlers import initialize_job_handlers
+from modules.event_system.async_worker import start_workers
+
+initialize_subscribers()
+initialize_job_handlers()
+start_workers()
+
+# Start Notification Hub listeners
+from modules.notification_hub.notification_manager import subscribe_notification_listeners
+subscribe_notification_listeners()
+
+# Seed default users on startup
+from modules.auth_system.router import seed_default_users
+with SessionLocal() as db_session:
+    seed_default_users(db_session)
+
 app = FastAPI(title=settings.PROJECT_NAME)
 
 # Register the new routers
@@ -89,6 +110,15 @@ app.include_router(worker_router, prefix="/api/v1/worker", tags=["Background Wor
 app.include_router(agents_router, prefix="/api/v1/agents", tags=["Multi-Agent AI System"])
 app.include_router(observability_router, prefix="/api/v1/observability", tags=["Observability & Monitoring"])
 app.include_router(reviews_router, prefix="/api/v1/reviews", tags=["Human-in-the-Loop Review Queue"])
+
+from modules.event_system.router import router as event_system_router
+app.include_router(event_system_router, prefix="/api/v1/events", tags=["Event Bus & Async Job System"])
+
+from modules.notification_hub.router import router as notifications_router
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["Enterprise Notification & Communication Hub"])
+
+from modules.auth_system.router import router as auth_router
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Enterprise Authentication & RBAC"])
 
 # Setup CORS
 app.add_middleware(
@@ -262,6 +292,19 @@ async def upload_document(
         )
         db.add(job)
         db.commit()
+        
+        # Publish event to Central Event Bus to kick off event-driven workflows
+        try:
+            from modules.event_system.event_bus import publish_event
+            publish_event(
+                db=db,
+                event_type="invoice_uploaded",
+                source_module="document_ingestion",
+                payload={"document_id": str(db_doc.id), "filename": db_doc.filename},
+                priority="high"
+            )
+        except Exception as event_err:
+            logger.error(f"Failed to publish invoice_uploaded event: {str(event_err)}")
         
         return db_doc
         
