@@ -223,5 +223,31 @@ graph TD
 * **AI Summary Compiler**: Generates natural language executive summaries based on system telemetry.
 * **Quick Action Dispatcher**: Executes commands (approvals, custom RAG searches, workflow executions) matching RBAC boundaries.
 
+---
+
+## 9. AI Copilot Control Center (Natural Language Ops Interface)
+
+Syntra OS features a natural language operations console that parses intents, verifies access constraints via security guardrails, runs multi-system operations, and returns rich UI components.
+
+```mermaid
+graph TD
+    A[User / Copilot Console] -->|Submit query| B[Copilot Router]
+    B -->|Parse intent & entities| C[Intent Parser]
+    C -->|Extracts intent JSON| D[Safety Guardrails]
+    D -->|Verify RBAC rules & boundaries| E{Permitted?}
+    E -->|No| F[Security Audit / 403 Forbidden]
+    E -->|Yes| G[Tool Executor]
+    G -->|Executes API actions| H[Subsystems: Workflows, Finance, CRM, Agents, Reviews]
+    H -->|Results| I[Response Generator]
+    I -->|Returns formatted markdown + card items| J[Copilot Chat Output]
+```
+
+### Components
+* **Intent Parser**: Normalizes input messages and classifies them into structured intents (e.g. `QUERY_FINANCE`, `EXECUTE_WORKFLOW`, `TRIGGER_AGENT`, `QUERY_RAG`, `PROCESS_REVIEW`, `GET_DIAGNOSTICS`) using pattern heuristics and AI matching.
+* **Safety Guardrails**: Cross-references parsed intents against the user's role and department profile to enforce access control (e.g. only Finance department can query financial transactions, only Admin/Manager can trigger manual workflows or execute approvals).
+* **Tool Executor**: Interacts programmatically with core Syntra OS operations (executing jobs on the Event Bus, querying PostgreSQL/SQLite database tables, initializing multi-agent swarm routines, modifying approvals status).
+* **Response Generator**: Assembles user-facing responses with structured data layout recommendations, markdown messages, and suggested next steps to create dynamic action cards on the frontend interface.
+
+
 
 

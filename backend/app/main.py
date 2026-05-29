@@ -123,6 +123,9 @@ app.include_router(auth_router, prefix="/api/v1/auth", tags=["Enterprise Authent
 from modules.dashboard_aggregator.router import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api/v1/dashboard", tags=["Unified Dashboard"])
 
+from modules.ai_copilot.router import router as copilot_router
+app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["AI Copilot Control Center"])
+
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,

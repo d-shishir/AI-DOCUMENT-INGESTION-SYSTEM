@@ -15,6 +15,7 @@ import { EventDashboard } from "./modules/event-monitoring/EventDashboard";
 import { NotificationDashboard } from "./modules/notification-center/NotificationDashboard";
 import { AuthDashboard } from "./modules/auth-access/AuthDashboard";
 import { UnifiedDashboard } from "./modules/unified-dashboard/UnifiedDashboard";
+import { CopilotDashboard } from "./modules/ai-copilot/CopilotDashboard";
 
 const BACKEND_URL = "http://localhost:8000";
 
@@ -312,6 +313,7 @@ function App() {
   // Define tab navigation groups based on mode
   const tabsList = [
     { id: "hub", label: "Control Center", num: "00", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Cpu },
+    { id: "copilot", label: "AI Copilot", num: "AI", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sparkles },
     { id: "assistant", label: "Document Assistant", num: "01", activeColor: "border-neonTeal text-neonTeal bg-neonTeal/5", icon: MessageSquare },
     { id: "automation", label: "Business Automation", num: "02", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sliders },
     { id: "agents", label: "Multi-Agent System", num: "03", activeColor: "border-neonIndigo text-neonIndigo bg-neonIndigo/5", icon: Sparkles },
@@ -622,6 +624,10 @@ function App() {
 
             {activeTab === "hub" && (
               <UnifiedDashboard />
+            )}
+
+            {activeTab === "copilot" && (
+              <CopilotDashboard />
             )}
 
             {activeTab === "assistant" && (
